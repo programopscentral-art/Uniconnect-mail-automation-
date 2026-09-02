@@ -1,0 +1,36 @@
+BOA: Kondapalli Nikhita
+Total tasks: 33
+
+2026-06-08 [PENDING] Working on week- schedule
+2026-06-08 [PENDING] face recognitions  allocation.
+2026-06-08 [PENDING] Co-ordinating with central team
+2026-06-08 [PENDING] Drafting and sharing click and shares
+2026-05-28 [PENDING] Innovator's Workshop
+2026-05-28 [PENDING] Creator's Lab
+2026-04-13 [PENDING] scheduling
+2026-04-13 [COMPLETED] lab internal tracker
+2026-04-13 [PENDING] Mapping success coaches to students
+2026-04-13 [PENDING] prod uploadation
+2026-04-13 [PENDING] Documentation of grit platform issues
+2026-04-07 [COMPLETED] MID 2 SYLLABUS
+2026-04-07 [COMPLETED] prod uploadation
+2026-04-07 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] SSO MEET LINK
+2026-04-07 [COMPLETED] scheduling
+2026-04-07 [COMPLETED] Click to share
+2026-04-06 [COMPLETED] Internal and external Questions
+2026-04-06 [COMPLETED] scheduling and prod updation
+2026-04-06 [COMPLETED] Attendance
+2026-04-06 [COMPLETED] click to share
+2026-04-05 [PENDING] Online classes issues
+2026-04-05 [COMPLETED] Scheduling
+2026-04-05 [PENDING] Sync up<> CDU Program Ops
+2026-04-05 [COMPLETED] Updating sessions in portal
+2026-04-02 [COMPLETED] Absentees click to share
+2026-04-02 [COMPLETED] Murf-Ai Hackathon certificates
+2026-04-02 [COMPLETED] Prod sequence sheet
+2026-04-02 [COMPLETED] Goals
+2026-04-02 [COMPLETED] Scheduling
+2026-04-02 [COMPLETED] Internal and external labs
+2026-04-02 [COMPLETED] NIAT-APP
+2026-04-02 [COMPLETED] Student Attendance tracking

@@ -1,0 +1,352 @@
+BOA: Sulthana So
+Total tasks: 349
+
+2026-06-08 [COMPLETED] Hiring calls
+2026-06-08 [COMPLETED] Staff Attendance
+2026-06-08 [COMPLETED] Updating interactions count in uniconnect
+2026-06-08 [COMPLETED] BOS
+2026-06-08 [COMPLETED] Medical certifcates
+2026-05-27 [COMPLETED] Practicals
+2026-05-27 [COMPLETED] Staff Attendance
+2026-05-27 [COMPLETED] BOS
+2026-05-27 [COMPLETED] No due form
+2026-05-20 [COMPLETED] GRIT examination
+2026-05-20 [COMPLETED] Staff attendance
+2026-05-20 [COMPLETED] Sync up with ops team
+2026-05-20 [COMPLETED] Connect with dean mam regarding question bank and BOS meeting
+2026-05-20 [COMPLETED] Hiring calls
+2026-05-20 [COMPLETED] Practical
+2026-05-20 [COMPLETED] GRIT exam
+2026-05-18 [COMPLETED] Practicals
+2026-05-18 [COMPLETED] GRIT examination
+2026-05-18 [COMPLETED] Staff attendance
+2026-05-18 [COMPLETED] Scheduling
+2026-05-18 [COMPLETED] Attendance updation in university portal
+2026-05-18 [COMPLETED] GRIT exam
+2026-05-18 [COMPLETED] Sync up with ops team
+2026-05-17 [COMPLETED] Attendance slots
+2026-05-17 [COMPLETED] Calling candidates for interview availability
+2026-05-17 [COMPLETED] Scheduling
+2026-05-17 [COMPLETED] Counts
+2026-05-17 [COMPLETED] Sync up with ops team
+2026-05-17 [COMPLETED] Interview
+2026-05-17 [COMPLETED] BOS
+2026-05-17 [COMPLETED] Practicals
+2026-05-17 [COMPLETED] Staff attendance
+2026-05-15 [COMPLETED] Interview
+2026-05-15 [COMPLETED] Staff Attendance updating in sheets and uniconnect
+2026-05-15 [COMPLETED] Scheduling
+2026-05-15 [COMPLETED] Attendance slots
+2026-05-15 [COMPLETED] Hiring process
+2026-05-15 [COMPLETED] Connect with university staff & curriculum team
+2026-05-15 [COMPLETED] Practicals
+2026-05-15 [COMPLETED] Sync-up with Ops team
+2026-05-13 [COMPLETED] Staff Attendance
+2026-05-13 [COMPLETED] Assigning panelist and sharing links
+2026-05-13 [COMPLETED] Planning for end semester exams
+2026-05-13 [COMPLETED] Interview
+2026-05-13 [COMPLETED] Assignments
+2026-05-13 [COMPLETED] Hiring works
+2026-05-13 [COMPLETED] End Semester exams
+2026-05-13 [COMPLETED] Scheduling
+2026-05-13 [COMPLETED] Practicals
+2026-05-13 [COMPLETED] Daily count
+2026-05-13 [COMPLETED] Attendance slots
+2026-05-12 [COMPLETED] Scheduling
+2026-05-12 [COMPLETED] Staff Attendance
+2026-05-12 [COMPLETED] Hiring
+2026-05-12 [COMPLETED] CAT examination
+2026-05-12 [COMPLETED] Attendance slots
+2026-05-12 [COMPLETED] Cat exam works
+2026-05-12 [COMPLETED] Counts updation
+2026-05-11 [COMPLETED] CAT examination
+2026-05-11 [COMPLETED] Staff Attendance
+2026-05-11 [COMPLETED] CAT exam works
+2026-05-11 [COMPLETED] Conncet with university staff
+2026-05-11 [COMPLETED] TN ops team sync-up
+2026-05-11 [COMPLETED] Counts updation
+2026-05-11 [COMPLETED] Calls for interview slot
+2026-05-11 [COMPLETED] Hiring works
+2026-05-11 [COMPLETED] Meeting links
+2026-05-10 [COMPLETED] Arrear list
+2026-05-10 [COMPLETED] CAT 3 Examination requirements
+2026-05-10 [COMPLETED] CAT 3 exams
+2026-05-10 [COMPLETED] Staff Attendance
+2026-05-10 [COMPLETED] Sync up with ops team
+2026-05-10 [COMPLETED] Hiring calls
+2026-05-10 [COMPLETED] Meeting Link
+2026-05-06 [COMPLETED] Sync-up with TN ops team
+2026-05-06 [COMPLETED] Staff Attendance
+2026-05-06 [COMPLETED] Attendance slots
+2026-05-06 [COMPLETED] Scheduling
+2026-05-06 [COMPLETED] Drop-out data
+2026-05-06 [COMPLETED] Google form
+2026-05-06 [COMPLETED] Sync-up with Ops team
+2026-05-06 [COMPLETED] Daily counts
+2026-05-06 [COMPLETED] Skill assessment
+2026-05-05 [COMPLETED] MCQ
+2026-05-05 [COMPLETED] Connect with university staffs for BOS status
+2026-05-05 [COMPLETED] Connect with dean mam regarding sem 3, practicals and BOS updates.
+2026-05-05 [COMPLETED] Attendance load
+2026-05-05 [COMPLETED] Attendance slots
+2026-05-05 [COMPLETED] Scheduling
+2026-05-05 [COMPLETED] Sync up with ops team
+2026-05-05 [COMPLETED] Online class
+2026-05-05 [COMPLETED] Staff attendance
+2026-05-05 [COMPLETED] Daily count
+2026-05-05 [COMPLETED] Count
+2026-05-05 [COMPLETED] GRIT examination
+2026-05-04 [COMPLETED] Report
+2026-05-04 [COMPLETED] Updating the payment status of students in the sheet.
+2026-05-04 [COMPLETED] Updating daily counts
+2026-05-04 [COMPLETED] Scheduling
+2026-05-04 [COMPLETED] Online class
+2026-05-04 [COMPLETED] MyNIAT app
+2026-05-04 [COMPLETED] Attendance slots
+2026-05-04 [COMPLETED] GRIT exams
+2026-05-04 [COMPLETED] Staff attendance
+2026-05-04 [COMPLETED] GRIT examination
+2026-05-04 [COMPLETED] Generating link for online class
+2026-05-04 [COMPLETED] Connect with university staffs for BOS status
+2026-05-04 [COMPLETED] Ticket raising
+2026-05-03 [COMPLETED] MyNIAT & LMS
+2026-05-03 [COMPLETED] Updating daily counts
+2026-05-03 [COMPLETED] Updating tracking sheet for instructors daily report
+2026-05-03 [COMPLETED] Scheduling
+2026-05-03 [COMPLETED] Attendance slots
+2026-05-03 [COMPLETED] GRIT examination
+2026-05-03 [COMPLETED] GRIT
+2026-05-03 [COMPLETED] Online class
+2026-05-03 [COMPLETED] Updating corrections in the sheet for Student Marklist
+2026-05-03 [COMPLETED] Ad-hoc
+2026-05-03 [COMPLETED] Staff Attendance
+2026-05-03 [COMPLETED] Updating attendance in university portal
+2026-05-01 [COMPLETED] Conncet with HOD
+2026-05-01 [COMPLETED] Assigning tasks to success coach
+2026-05-01 [COMPLETED] Online class
+2026-05-01 [COMPLETED] Sync-up with Ops team
+2026-05-01 [COMPLETED] Scheduling
+2026-05-01 [COMPLETED] Staff Attendance
+2026-05-01 [COMPLETED] Updating daily counts
+2026-05-01 [COMPLETED] Attendance slots
+2026-05-01 [COMPLETED] Google forms
+2026-04-29 [COMPLETED] Scheduling
+2026-04-29 [COMPLETED] Collecting question papers from the university printing department.
+2026-04-29 [COMPLETED] CAT 3 exam
+2026-04-29 [COMPLETED] Enquiry regarding admission process.
+2026-04-29 [COMPLETED] Monitoring online class
+2026-04-29 [COMPLETED] Updating attendance in university portal
+2026-04-29 [COMPLETED] Staff Attendance
+2026-04-29 [COMPLETED] Sharing Assignment 3 contents to success coach.
+2026-04-29 [COMPLETED] Generating feedback form for the DSA classes
+2026-04-29 [COMPLETED] Updating session count and interaction count in uniconnect
+2026-04-29 [COMPLETED] Updating off dates in admin panel
+2026-04-28 [COMPLETED] Meeting with chairman
+2026-04-28 [COMPLETED] Session and students count updating to PM
+2026-04-28 [COMPLETED] Updating interactions and session count in Uniconnect
+2026-04-28 [COMPLETED] Updating subject code and course details in the question paper
+2026-04-28 [COMPLETED] Staff Attendance
+2026-04-28 [COMPLETED] GRIT EXAMINATION
+2026-04-28 [COMPLETED] GRIT seating
+2026-04-28 [COMPLETED] Attendance slots
+2026-04-28 [COMPLETED] Scheduling
+2026-04-28 [COMPLETED] Attendance load
+2026-04-27 [COMPLETED] Updating NIAT- Daily Reporting sheet
+2026-04-27 [COMPLETED] Attendance slots
+2026-04-27 [COMPLETED] Scheduling
+2026-04-27 [COMPLETED] Students marks
+2026-04-27 [COMPLETED] Staff Attendance
+2026-04-27 [COMPLETED] Planning for CAT 3 exams
+2026-04-27 [COMPLETED] Sync-up with Ops team
+2026-04-27 [COMPLETED] Verified and signed the Marklist for students
+2026-04-27 [COMPLETED] Tracking and escalating MyNIAT App issues
+2026-04-27 [COMPLETED] Updating attendance in university portal
+2026-04-27 [COMPLETED] Planning for practicals
+2026-04-26 [COMPLETED] GRIT EXAMINATION
+2026-04-26 [COMPLETED] Scheduling
+2026-04-26 [COMPLETED] Staff Attendance
+2026-04-26 [COMPLETED] Attendance slots
+2026-04-26 [COMPLETED] CAT 3 examination
+2026-04-26 [COMPLETED] Connect with HOD for upcoming works
+2026-04-26 [COMPLETED] GRIT seating
+2026-04-26 [COMPLETED] Updating session and students count to PM
+2026-04-26 [COMPLETED] Conncet with instructors for practicals
+2026-04-26 [COMPLETED] Updating attendance in university portal
+2026-04-24 [COMPLETED] Click and shares
+2026-04-24 [COMPLETED] MyNIAT app
+2026-04-24 [COMPLETED] GRIT SEATING
+2026-04-24 [COMPLETED] Online class
+2026-04-24 [COMPLETED] GRIT pre-exam
+2026-04-24 [COMPLETED] GRIT EXAMINATION
+2026-04-24 [COMPLETED] Attendance slots
+2026-04-24 [COMPLETED] Scheduling
+2026-04-24 [COMPLETED] Daily reporting sheet
+2026-04-24 [COMPLETED] Staff Attendance
+2026-04-23 [COMPLETED] Attendance slots
+2026-04-23 [COMPLETED] Sync up with ops team
+2026-04-23 [COMPLETED] BOS correction
+2026-04-23 [COMPLETED] Attendance
+2026-04-23 [COMPLETED] GRIT exam
+2026-04-23 [COMPLETED] MyNIAT app
+2026-04-23 [COMPLETED] Student and parent interaction count updated in uniconnect
+2026-04-23 [COMPLETED] Staff Attendance
+2026-04-23 [COMPLETED] GRIT examination
+2026-04-23 [COMPLETED] Scheduling
+2026-04-21 [COMPLETED] Attendance slots
+2026-04-21 [COMPLETED] Instructor portal issue
+2026-04-21 [COMPLETED] Staff Attendance
+2026-04-21 [COMPLETED] CAT examination
+2026-04-21 [COMPLETED] CAT Invigilation duty
+2026-04-21 [COMPLETED] Giving CAT papers to instructors for correction
+2026-04-21 [COMPLETED] SEB Trial Test
+2026-04-21 [COMPLETED] MyNIAT app
+2026-04-20 [COMPLETED] Seating plan for exams
+2026-04-20 [COMPLETED] Updating attendance in university portal
+2026-04-20 [COMPLETED] University attendance update
+2026-04-20 [COMPLETED] CAT exam
+2026-04-20 [COMPLETED] Staff Attendance
+2026-04-20 [COMPLETED] SEB Trial Test
+2026-04-19 [COMPLETED] Staff Attendance
+2026-04-19 [COMPLETED] CAT 2 exams preparation
+2026-04-19 [COMPLETED] CAT 2 examination
+2026-04-19 [COMPLETED] Sync-up with Ops team
+2026-04-19 [COMPLETED] Attendance
+2026-04-19 [COMPLETED] Issue escalation
+2026-04-17 [COMPLETED] Attendance % below 40
+2026-04-17 [COMPLETED] Fee status
+2026-04-17 [COMPLETED] Session and students count
+2026-04-17 [COMPLETED] Updating attendance in university portal
+2026-04-17 [COMPLETED] Click and shares for CAT 1
+2026-04-17 [COMPLETED] Attendance
+2026-04-17 [COMPLETED] Staff Attendance
+2026-04-17 [COMPLETED] Attendance
+2026-04-16 [COMPLETED] SEB Trial Test
+2026-04-16 [COMPLETED] Attendance
+2026-04-16 [COMPLETED] CAT examination
+2026-04-16 [COMPLETED] Attendance slots
+2026-04-16 [COMPLETED] Sync-up
+2026-04-16 [COMPLETED] MyNIAT app
+2026-04-16 [COMPLETED] Staff Attendance
+2026-04-16 [COMPLETED] Scheduling
+2026-04-16 [COMPLETED] Conncet with university staff
+2026-04-16 [COMPLETED] Dayscholars and Hosteller list
+2026-04-16 [COMPLETED] Session and students count
+2026-04-15 [COMPLETED] Attendance slots
+2026-04-15 [COMPLETED] Mail ID update
+2026-04-15 [COMPLETED] Results analysis for Previous Semester
+2026-04-15 [COMPLETED] Staff Attendance
+2026-04-15 [COMPLETED] Session and students count
+2026-04-15 [COMPLETED] Conncet with university staff
+2026-04-15 [COMPLETED] SEB Trial Test
+2026-04-15 [COMPLETED] Attendance load
+2026-04-15 [COMPLETED] Sync-up with Ops team
+2026-04-15 [COMPLETED] Attendance
+2026-04-15 [COMPLETED] SIF Number
+2026-04-15 [COMPLETED] ERP team
+2026-04-15 [COMPLETED] Off-dates
+2026-04-15 [COMPLETED] Scheduling
+2026-04-14 [COMPLETED] Sync-up with Ops team
+2026-04-14 [COMPLETED] Session and students count
+2026-04-14 [COMPLETED] Attendance
+2026-04-14 [COMPLETED] Re-evaluation
+2026-04-14 [COMPLETED] NIAT app issues
+2026-04-14 [COMPLETED] Attendance slots
+2026-04-14 [COMPLETED] Fee details name list
+2026-04-14 [COMPLETED] Staff Attendance
+2026-04-14 [COMPLETED] ERP team regarding bloombyte
+2026-04-14 [COMPLETED] Scheduling
+2026-04-13 [COMPLETED] Scheduling
+2026-04-13 [COMPLETED] Sync-up with Ops team
+2026-04-13 [COMPLETED] LMS issue
+2026-04-13 [COMPLETED] Staff Attendance
+2026-04-13 [COMPLETED] Follow up with HOD
+2026-04-13 [COMPLETED] Timetable
+2026-04-12 [COMPLETED] Paper arrangements
+2026-04-12 [COMPLETED] MyNIAT app
+2026-04-12 [COMPLETED] LMS issue
+2026-04-12 [COMPLETED] Updating attendance in university portal
+2026-04-12 [COMPLETED] Tracking sheet
+2026-04-12 [COMPLETED] Off-dates
+2026-04-12 [COMPLETED] Session and students count
+2026-04-12 [COMPLETED] Team meeting
+2026-04-12 [COMPLETED] Sync-up
+2026-04-12 [COMPLETED] Attendance
+2026-04-12 [COMPLETED] Staff Attendance
+2026-04-09 [COMPLETED] Session and students count
+2026-04-08 [COMPLETED] Attendance load
+2026-04-08 [COMPLETED] Attendance
+2026-04-08 [COMPLETED] Goals updation-AMJ
+2026-04-08 [COMPLETED] Sync-up
+2026-04-08 [COMPLETED] Staff Attendance
+2026-04-08 [COMPLETED] Students attendance
+2026-04-08 [COMPLETED] KT on Uniconnect
+2026-04-08 [COMPLETED] NIAT app issues
+2026-04-08 [COMPLETED] Bloom Byte Attendance
+2026-04-07 [COMPLETED] Paper arrangements
+2026-04-07 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] MyNIAT app
+2026-04-07 [COMPLETED] Session and students count
+2026-04-07 [COMPLETED] Scheduling
+2026-04-07 [COMPLETED] Sync-up
+2026-04-07 [COMPLETED] Almanac
+2026-04-06 [COMPLETED] Arranging CAT papers
+2026-04-06 [COMPLETED] Attendance
+2026-04-06 [COMPLETED] Almanac
+2026-04-06 [COMPLETED] MyNIAT app issues
+2026-04-06 [COMPLETED] Attendance load
+2026-04-06 [COMPLETED] Scheduling
+2026-04-06 [COMPLETED] Follow up for bloom byte
+2026-04-06 [COMPLETED] University Meeting
+2026-04-05 [COMPLETED] Almanac
+2026-04-05 [COMPLETED] Attendance
+2026-04-05 [COMPLETED] Attendance slots
+2026-04-05 [COMPLETED] Scheduling
+2026-04-05 [COMPLETED] MCQ forms
+2026-04-03 [COMPLETED] Attendance slots
+2026-04-03 [COMPLETED] Scheduling
+2026-04-03 [COMPLETED] Internet issue sheet
+2026-04-03 [COMPLETED] Fee payment status
+2026-04-03 [COMPLETED] Online class
+2026-04-03 [COMPLETED] Attendance
+2026-04-02 [COMPLETED] Online class
+2026-04-02 [COMPLETED] Almanac
+2026-04-02 [COMPLETED] Passport details
+2026-04-02 [COMPLETED] Attendance load
+2026-04-01 [COMPLETED] Sheets update
+2026-04-01 [COMPLETED] Attendance load
+2026-04-01 [COMPLETED] Follow up with university staffs
+2026-04-01 [COMPLETED] Attendance slots
+2026-04-01 [COMPLETED] Follow up with university staff
+2026-04-01 [COMPLETED] BOS meeting
+2026-04-01 [COMPLETED] Skill assessment 2
+2026-04-01 [COMPLETED] Scheduling
+2026-04-01 [COMPLETED] Self rating of JFM
+2026-04-01 [COMPLETED] NIAT app issues
+2026-04-01 [COMPLETED] Team meeting
+2026-04-01 [COMPLETED] Face recognition
+2026-04-01 [COMPLETED] Staff Attendance
+2026-03-30 [COMPLETED] Quarter goals and one-on-one review
+2026-03-30 [COMPLETED] Online class
+2026-03-30 [COMPLETED] Loading attendance sheet
+2026-03-30 [COMPLETED] Sync up with ops team
+2026-03-29 [COMPLETED] Feedback and results analysis
+2026-03-29 [COMPLETED] Online class
+2026-03-29 [COMPLETED] Meeting with HOD
+2026-03-29 [COMPLETED] GRIT examination
+2026-03-26 [COMPLETED] CAT examination
+2026-03-26 [COMPLETED] GRIT examination
+2026-03-25 [COMPLETED] Online class
+2026-03-25 [COMPLETED] Session and students count
+2026-03-25 [COMPLETED] Attendance load
+2026-03-25 [COMPLETED] BOS correction
+2026-03-25 [COMPLETED] Question papers
+2026-03-22 [COMPLETED] Fee payment status
+2026-03-22 [COMPLETED] Online class link
+2026-03-22 [COMPLETED] Updating Schedule
+2026-03-22 [COMPLETED] Scheduling
+2026-03-22 [COMPLETED] Attendance slots
+2026-03-22 [COMPLETED] Students attendance
+2026-03-22 [COMPLETED] SEM-1 result
+2026-03-22 [COMPLETED] Staff Attendance
+2026-03-22 [COMPLETED] CAT examination
+2026-03-22 [COMPLETED] Sheet generated for CAT 1

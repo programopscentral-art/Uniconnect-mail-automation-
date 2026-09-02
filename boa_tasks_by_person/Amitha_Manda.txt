@@ -1,0 +1,58 @@
+BOA: Amitha Manda
+Total tasks: 55
+
+2026-06-19 [COMPLETED] loading face recognition
+2026-06-19 [COMPLETED] co-ordinated and monitored the students for yoga event
+2026-06-19 [PENDING] REPORT SHEET
+2026-06-19 [PENDING] section loading
+2026-06-19 [PENDING] APP ISSUES
+2026-06-19 [PENDING] uploading schedule in prod
+2026-06-19 [PENDING] making changes in prod regarding schedule
+2026-06-19 [COMPLETED] FACE RECOGNITION AND LEARNING PORTAL ISSUES
+2026-06-19 [IN_PROGRESS] mapping loan and bank payments
+2026-06-17 [PENDING] loading face recognition
+2026-06-17 [PENDING] sharing gallabox absentees student data
+2026-06-17 [COMPLETED] daily report sheet and daily report on uniconnect
+2026-06-17 [COMPLETED] Absentees call sheet
+2026-06-17 [COMPLETED] section loading
+2026-06-17 [COMPLETED] mapping the loan and bank to bank transfer cases
+2026-06-17 [IN_PROGRESS] learning portal and face recognition issues
+2026-06-17 [COMPLETED] schedule upload
+2026-06-17 [PENDING] Zoho tickets
+2026-06-08 [PENDING] Zoho Tickets
+2026-06-08 [PENDING] bulk mails in uniconnect
+2026-06-08 [PENDING] Announcements
+2026-06-08 [PENDING] mapping loan and bank payments
+2026-06-08 [PENDING] SCHEDULING
+2026-06-08 [PENDING] communication tracker
+2026-05-28 [PENDING] Creator's Lab
+2026-05-28 [PENDING] Innovator's Workshop
+2026-04-13 [PENDING] schedule daily report
+2026-04-13 [PENDING] scheduling
+2026-04-13 [COMPLETED] online classes issue
+2026-04-13 [COMPLETED] schedule daily report
+2026-04-13 [COMPLETED] Zoho tickets
+2026-04-13 [PENDING] schedule uploading
+2026-04-13 [COMPLETED] scheduling
+2026-04-13 [PENDING] sem 2 fee mapping
+2026-04-13 [COMPLETED] sem 2 fee mapping
+2026-04-13 [COMPLETED] updating LTP prod sequence
+2026-04-13 [PENDING] loading section attendance
+2026-04-13 [COMPLETED] uploading schedule in prod
+2026-04-13 [COMPLETED] NIAT app issues
+2026-04-07 [PENDING] sem 2 payments
+2026-04-07 [PENDING] loading section attendance
+2026-04-07 [PENDING] updating schedule daily report
+2026-04-07 [PENDING] Scheduling
+2026-04-06 [COMPLETED] GOALS
+2026-04-06 [PENDING] uploading schedule in prod
+2026-04-06 [COMPLETED] updating schedule report
+2026-04-06 [COMPLETED] schedule uploading in admin panel
+2026-04-06 [COMPLETED] updating LTP session tracker
+2026-04-06 [COMPLETED] creating section attendance slots
+2026-04-06 [COMPLETED] updating schedule daily report sheet
+2026-04-05 [PENDING] Sync up<> CDU Program Ops
+2026-04-02 [COMPLETED] report regarding schedule
+2026-04-02 [COMPLETED] scheduling
+2026-04-02 [COMPLETED] NIAT APP Issues
+2026-04-02 [COMPLETED] updating prod

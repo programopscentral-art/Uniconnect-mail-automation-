@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getPettyCashRequestById } from '@uniconnect/shared';
-import { assertUniversityAccess, isFinance, isApprover, isGlobalAdmin } from '$lib/server/petty_cash_access';
+import { assertUniversityAccess, isFinance, canApproveStage, pendingLevel, isGlobalAdmin } from '$lib/server/petty_cash_access';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -11,6 +11,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     return {
         ...detail,
         me: { id: user.id, name: user.name, email: user.email, role: user.role },
-        caps: { isFinance: isFinance(user), isAdmin: isGlobalAdmin(user), canApprove: isApprover(user) },
+        caps: {
+            isFinance: isFinance(user),
+            isAdmin: isGlobalAdmin(user),
+            // Can the acting user approve at THIS request's current stage?
+            canApprove: canApproveStage(user, detail.request.status),
+            // Which level the request is waiting on (1 = Pravalika, 2 = Satish), else null.
+            pendingLevel: pendingLevel(detail.request.status),
+        },
     };
 };

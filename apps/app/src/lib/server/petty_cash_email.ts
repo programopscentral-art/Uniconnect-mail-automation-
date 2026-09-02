@@ -10,7 +10,8 @@ const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const fdate = (d: any) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
 const STATE: Record<string, { grad: string; solid: string; label: string; stage: number; emoji: string }> = {
-    SUBMITTED:     { grad: 'linear-gradient(135deg,#D97706,#F59E0B)', solid: '#D97706', label: 'Awaiting Approval', stage: 1, emoji: '🔔' },
+    SUBMITTED:     { grad: 'linear-gradient(135deg,#D97706,#F59E0B)', solid: '#D97706', label: 'Awaiting Level-1', stage: 1, emoji: '🔔' },
+    L1_APPROVED:   { grad: 'linear-gradient(135deg,#CA8A04,#EAB308)', solid: '#CA8A04', label: 'Awaiting Final Approval', stage: 1, emoji: '🔔' },
     APPROVED:      { grad: 'linear-gradient(135deg,#0D9488,#14B8A6)', solid: '#0D9488', label: 'Approved',          stage: 2, emoji: '✅' },
     SENT_BACK:     { grad: 'linear-gradient(135deg,#EA580C,#F97316)', solid: '#EA580C', label: 'Sent Back',         stage: 0, emoji: '🔄' },
     DISBURSED:     { grad: 'linear-gradient(135deg,#4F46E5,#6366F1)', solid: '#4F46E5', label: 'Money Disbursed',   stage: 3, emoji: '💸' },

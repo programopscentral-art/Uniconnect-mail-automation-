@@ -1,0 +1,98 @@
+BOA: Anamika Gupta
+Total tasks: 95
+
+2026-06-03 [IN_PROGRESS] Screening process-PMA and BOA role
+2026-06-03 [PENDING] Report sheet
+2026-06-03 [COMPLETED] Scheduled interview-PMA & BOA role
+2026-06-03 [COMPLETED] Communication_Query_Tracker
+2026-05-04 [COMPLETED] Extension board
+2026-05-04 [COMPLETED] absent student-click and share
+2026-05-04 [COMPLETED] Communication_Query_Tracker
+2026-05-04 [COMPLETED] Sem 2 - Exam Fees
+2026-05-03 [COMPLETED] Coordination in Brave Session
+2026-05-03 [COMPLETED] absent student-click and share
+2026-05-03 [COMPLETED] Sem-2- Exam details
+2026-05-03 [COMPLETED] Upload Schedule-Campus admin portal
+2026-04-28 [COMPLETED] correct student names in Zoho
+2026-04-28 [IN_PROGRESS] Correct names-zoho/grit pass
+2026-04-28 [COMPLETED] Exam Fees- Sem 2- loan students
+2026-04-28 [COMPLETED] classroom readiness
+2026-04-28 [COMPLETED] Communication_Query_Tracker
+2026-04-28 [COMPLETED] Communication_Query_Tracker
+2026-04-28 [COMPLETED] Exam Fees- Sem 2
+2026-04-28 [COMPLETED] Exam Fees- Sem 2
+2026-04-28 [COMPLETED] Grit meeting of students
+2026-04-28 [COMPLETED] Sem-1 Rechecking
+2026-04-28 [COMPLETED] absent student-click and share
+2026-04-28 [COMPLETED] Grit exam
+2026-04-27 [COMPLETED] Exam Fees- Sem 2
+2026-04-27 [COMPLETED] Communication_Query_Tracker
+2026-04-27 [COMPLETED] Exam Fees- Sem 2-follow-up messages to students
+2026-04-27 [COMPLETED] Sem 2 - Tuition Fees
+2026-04-27 [COMPLETED] Communication_Query_Tracker
+2026-04-27 [COMPLETED] resolving Class issues
+2026-04-27 [COMPLETED] Grit pass- Name Correction
+2026-04-27 [COMPLETED] Exam Fees- Sem 2
+2026-04-27 [COMPLETED] Click-and-Share- student parent's
+2026-04-23 [COMPLETED] Class readiness
+2026-04-23 [COMPLETED] Internal Examination — General
+2026-04-23 [COMPLETED] Internals
+2026-04-23 [COMPLETED] Communication_Query_Tracker
+2026-04-22 [COMPLETED] Exam Fees- Sem 2
+2026-04-22 [COMPLETED] 120 Click and share - Creators Lab
+2026-04-22 [COMPLETED] Communication_Query_Tracker
+2026-04-22 [COMPLETED] Communication_Query_Tracker
+2026-04-21 [COMPLETED] Updated the payment receipts-SEM-2
+2026-04-21 [COMPLETED] Click-and-Share messages
+2026-04-21 [COMPLETED] Sem-2 fees
+2026-04-21 [COMPLETED] Seating arrangement and Attendance sheet-grit exam
+2026-04-19 [COMPLETED] 1st sem Answer sheets
+2026-04-17 [COMPLETED] New syllabus completion status
+2026-04-17 [COMPLETED] Click-and-Share messages to students’ parents
+2026-04-17 [COMPLETED] Reconduct Internal MCQ exams
+2026-04-17 [COMPLETED] Internal examinations-Report
+2026-04-17 [COMPLETED] Sem 2 fees
+2026-04-17 [COMPLETED] Communication_Query_Tracker
+2026-04-16 [COMPLETED] Click-and-Share- student parent's
+2026-04-16 [COMPLETED] Student absentee data
+2026-04-16 [COMPLETED] Communication_Query_Tracker
+2026-04-16 [COMPLETED] Communication_Query_Tracker
+2026-04-16 [COMPLETED] Reconducting- Internal MCQ exam
+2026-04-16 [COMPLETED] share absentee list with SC's to get the Internals done
+2026-04-15 [COMPLETED] Communication_Query_Tracker
+2026-04-15 [COMPLETED] Masterclass-Click-and-Share
+2026-04-15 [COMPLETED] Semester 2 internals-Not Attempted
+2026-04-14 [COMPLETED] Semester 1 rechecking
+2026-04-13 [COMPLETED] SOP for Leave and Exit Policy- NxtWave employees at NIU
+2026-04-13 [COMPLETED] Semester 2 Internals Evaluation Sheet
+2026-04-13 [COMPLETED] Internal Examination — General
+2026-04-13 [COMPLETED] Communication_Query_Tracker
+2026-04-13 [COMPLETED] Internals- Meeting
+2026-04-13 [COMPLETED] Summary Report- Sem 1 Results
+2026-04-13 [COMPLETED] Click-and-Share messages- CP Session
+2026-04-12 [COMPLETED] Certificates for Vector Search Workshop
+2026-04-12 [COMPLETED] Process for students with less than 75% attendance
+2026-04-12 [COMPLETED] Click and share-Vector search workshop certificates
+2026-04-12 [COMPLETED] Internals
+2026-04-12 [COMPLETED] Communication_Query_Tracker
+2026-04-12 [COMPLETED] CP Session
+2026-04-12 [COMPLETED] TV Screen issue
+2026-04-12 [COMPLETED] Sem-1 Rechecking
+2026-04-10 [COMPLETED] Communication_Query_Tracker
+2026-04-08 [COMPLETED] click and share
+2026-04-08 [COMPLETED] Communication_Query_Tracker
+2026-04-07 [COMPLETED] Certifiactes - human signal workshop
+2026-04-07 [COMPLETED] Student achievements
+2026-04-07 [COMPLETED] Student achievements Doc
+2026-04-07 [COMPLETED] Communication_Query_Tracker
+2026-04-06 [COMPLETED] Communication_Query_Tracker
+2026-04-05 [COMPLETED] Sem-1 Rechecking
+2026-04-05 [COMPLETED] Communication_Query_Tracker
+2026-04-05 [COMPLETED] Sem 2 - Reconcilation confirmation from Ops
+2026-04-01 [COMPLETED] Report on the syllabus completion-SEM 2
+2026-04-01 [COMPLETED] Shared absentee details from Zoho with the SC Team and updated parents’ contact numbers.
+2026-04-01 [COMPLETED] Sem 2- Rechecking
+2026-04-01 [COMPLETED] Freshers event expense bill
+2026-04-01 [COMPLETED] Student Details Form (Documentation Purpose)
+2026-04-01 [COMPLETED] Posted updates in the student group as per the Communication_Query_Tracker guidelines.
+2026-03-31 [COMPLETED] Provide SC team absentees details

@@ -1,0 +1,35 @@
+BOA: Godavarthi Saivenkat
+Total tasks: 32
+
+2026-04-26 [COMPLETED] Checking Learning portal login issue(face recognition)
+2026-04-26 [COMPLETED] Making changes in Off Dates (institute and batch names)
+2026-04-24 [COMPLETED] Bulk mails
+2026-04-24 [COMPLETED] Event Loading
+2026-04-24 [COMPLETED] Event Loading
+2026-04-22 [COMPLETED] Event Loading
+2026-04-22 [COMPLETED] KT ON INSTITUTE COURSE LOADING
+2026-04-21 [COMPLETED] Event Loading
+2026-04-21 [COMPLETED] GRIT PASSES
+2026-04-21 [COMPLETED] LLM MODULE QUIZ LOADING
+2026-04-21 [COMPLETED] Name update in ZOHO
+2026-04-19 [COMPLETED] need to content unlock
+2026-04-15 [COMPLETED] Event Loading
+2026-04-15 [COMPLETED] Poster Generation Isue
+2026-04-15 [COMPLETED] POSTER GENERATION
+2026-04-15 [PENDING] Changes in Off dated
+2026-04-14 [COMPLETED] Daily Tasks
+2026-04-14 [COMPLETED] Students Profiles Loading
+2026-04-14 [COMPLETED] STUDENT PROFILE LOADING KT
+2026-04-12 [COMPLETED] LLM Module Quizs loading
+2026-04-12 [COMPLETED] Need to create a sheet for CP
+2026-04-12 [COMPLETED] Institute Course loading
+2026-04-12 [COMPLETED] Need to load Zoho tickets
+2026-03-24 [PENDING] Schedule daily report
+2026-03-24 [PENDING] Bulk mails
+2026-03-24 [PENDING] Schedule daily report
+2026-03-24 [PENDING] Time table
+2026-03-23 [COMPLETED] Course Version change
+2026-03-23 [COMPLETED] BULK MAILS
+2026-03-23 [COMPLETED] Topin tech KT
+2026-03-02 [COMPLETED] EVS LOADING TO CAP
+2026-01-30 [COMPLETED] Hands on Topin Tech

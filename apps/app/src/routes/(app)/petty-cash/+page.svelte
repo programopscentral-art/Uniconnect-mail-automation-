@@ -7,7 +7,8 @@
 
   const STATUS: Record<string, { label: string; cls: string }> = {
     DRAFT: { label: "Draft", cls: "bg-slate-400/10 text-slate-500 border-slate-300 dark:border-slate-700" },
-    SUBMITTED: { label: "Awaiting Approval", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30" },
+    SUBMITTED: { label: "Awaiting L1", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30" },
+    L1_APPROVED: { label: "Awaiting L2", cls: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 border-yellow-500/30" },
     SENT_BACK: { label: "Sent Back", cls: "bg-orange-500/10 text-orange-600 dark:text-orange-300 border-orange-500/30" },
     APPROVED: { label: "Approved", cls: "bg-teal-500/10 text-teal-600 dark:text-teal-300 border-teal-500/30" },
     DISBURSED: { label: "Disbursed", cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border-indigo-500/30" },
@@ -27,7 +28,8 @@
     switch (r.status) {
       case "DRAFT": return { stage: 0, msg: "Draft — send it for approval when ready.", tone: "text-slate-500", done: false };
       case "SENT_BACK": return { stage: 0, msg: "Sent back — please edit and resubmit.", tone: "text-orange-500", done: false };
-      case "SUBMITTED": return { stage: 1, msg: "Waiting for approval.", tone: "text-amber-500", done: false };
+      case "SUBMITTED": return { stage: 1, msg: "Waiting for Level-1 approval (Pravalika).", tone: "text-amber-500", done: false };
+      case "L1_APPROVED": return { stage: 1, msg: "Level-1 approved — waiting for Satish's final approval.", tone: "text-amber-500", done: false };
       case "APPROVED": return { stage: 2, msg: `Approved for ${money(r.amount_approved)} — money will be paid to you soon.`, tone: "text-teal-500", done: false };
       case "DISBURSED": return {
         stage: 3,
@@ -46,7 +48,7 @@
   }
   const myReqs = $derived(data.requests as any[]);
   const mySummary = $derived({
-    awaiting: myReqs.filter((r) => r.status === "SUBMITTED").length,
+    awaiting: myReqs.filter((r) => ["SUBMITTED", "L1_APPROVED"].includes(r.status)).length,
     coming: myReqs.filter((r) => r.status === "APPROVED").reduce((s, r) => s + Number(r.amount_approved || 0), 0),
     toAccount: myReqs.filter((r) => ["DISBURSED", "BILL_SUBMITTED"].includes(r.status)).reduce((s, r) => s + Number(r.total_paid || 0), 0),
   });
@@ -68,7 +70,7 @@
 
   const filtered = $derived.by(() => {
     let list = data.requests as any[];
-    if (view === "approvals") list = list.filter((r) => r.status === "SUBMITTED");
+    if (view === "approvals") list = list.filter((r) => ["SUBMITTED", "L1_APPROVED"].includes(r.status));
     else if (view === "disbursement") list = list.filter((r) => r.status === "APPROVED");
     else if (view === "bills") list = list.filter((r) => ["DISBURSED", "BILL_SUBMITTED"].includes(r.status));
     else if (view === "settlement") list = list.filter((r) => ["BILL_VERIFIED", "DISBURSED", "BILL_SUBMITTED"].includes(r.status));
@@ -84,15 +86,20 @@
     return c;
   });
   const PC_PIPELINE = [
-    { key: "SUBMITTED", label: "Awaiting Approval", view: "approvals", cls: "text-amber-600" },
+    { key: "SUBMITTED", label: "Awaiting L1", view: "approvals", cls: "text-amber-600" },
+    { key: "L1_APPROVED", label: "Awaiting L2", view: "approvals", cls: "text-yellow-600" },
     { key: "APPROVED", label: "To Disburse", view: "disbursement", cls: "text-teal-600" },
     { key: "DISBURSED", label: "Bill Pending", view: "bills", cls: "text-indigo-600" },
     { key: "BILL_SUBMITTED", label: "To Verify", view: "bills", cls: "text-blue-600" },
     { key: "BILL_VERIFIED", label: "To Settle", view: "settlement", cls: "text-cyan-600" },
     { key: "SETTLED", label: "Settled", view: "all", cls: "text-emerald-600" },
   ];
-  // The SUBMITTED requests that need Satish's decision — surfaced directly.
-  const pendingApprovals = $derived((data.requests as any[]).filter((r) => r.status === "SUBMITTED"));
+  // Requests waiting on an approval decision — L1 (Pravalika) or L2 (Satish) —
+  // surfaced directly so the approver sees them without switching tabs.
+  const pendingApprovals = $derived(
+    (data.requests as any[]).filter((r) => ["SUBMITTED", "L1_APPROVED"].includes(r.status)),
+  );
+  const levelOf = (s: string) => (s === "SUBMITTED" ? "Level 1 · Pravalika" : "Level 2 · Satish");
 
   const tiles = $derived([
     { label: "PC Approvals", sub: "Awaiting a decision", value: String(data.stats.awaiting_approval), accent: "text-amber-600 dark:text-amber-400", ring: "ring-amber-500/20" },
@@ -250,7 +257,7 @@
             <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Petty Cash Flow</h2>
             <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{(data.requests as any[]).length} total</span>
           </div>
-          <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             {#each PC_PIPELINE as s}
               <button onclick={() => (view = s.view)} class="text-left p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 hover:border-indigo-300 transition-all">
                 <p class="text-2xl font-black {s.cls} tabular-nums">{pcStage[s.key] || 0}</p>
@@ -266,7 +273,7 @@
             <div>
               <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Awaiting Approval</h2>
               <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                {#if data.caps.canApprove}Open a request to approve, send back, or reject{:else}Only Satish can approve these{/if}
+                {#if data.caps.canApprove}Open a request to approve, send back, or reject{:else}Level 1 = Pravalika, then Level 2 = Satish{/if}
               </p>
             </div>
             <span class="text-2xl font-black text-amber-600 tabular-nums">{pendingApprovals.length}</span>
@@ -280,7 +287,7 @@
                     <span class="inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest {stt(r.status).cls}">{stt(r.status).label}</span>
                   </div>
                   <p class="font-bold text-gray-900 dark:text-white truncate mt-0.5">{r.purpose}</p>
-                  <p class="text-[11px] text-gray-400">{r.university_name} · {r.requester_name || r.requester_email}</p>
+                  <p class="text-[11px] text-gray-400">{r.university_name} · {r.requester_name || r.requester_email} · <span class="font-bold text-amber-600">{levelOf(r.status)}</span></p>
                 </div>
                 <div class="text-right shrink-0">
                   <p class="font-black text-gray-900 dark:text-white tabular-nums">{money(r.amount_requested)}</p>

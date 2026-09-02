@@ -1,0 +1,227 @@
+BOA: S Meena
+Total tasks: 224
+
+2026-05-18 [PENDING] Sync with with ops team cheevella
+2026-05-18 [PENDING] chevella campus exam readiness
+2026-05-13 [PENDING] Sync with Ops team day plan
+2026-05-11 [PENDING] Absentees click & share update
+2026-05-11 [PENDING] Updated Staff Attendance sheet
+2026-05-11 [PENDING] Student Crowd Management and Monitoring
+2026-04-28 [PENDING] Sync up with kartikh meena and syed
+2026-04-24 [COMPLETED] went for GRIT Invigilation
+2026-04-24 [PENDING] Had a call with Jyoshna regarding student face recognization Issue
+2026-04-24 [PENDING] had a call with Alekya regarding students face recognization issue
+2026-04-24 [PENDING] Student Crowd Management and Monitoring
+2026-04-24 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-24 [COMPLETED] Updated Staff Attendance sheet
+2026-04-24 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-24 [PENDING] Made the classroom announcement regarding Mercer Mettl account activation.
+2026-04-23 [PENDING] Absentees click & share update
+2026-04-23 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-23 [PENDING] I have taken KT from Karthik regarding certificate generation.
+2026-04-23 [COMPLETED] Updated Staff Attendance sheet
+2026-04-23 [COMPLETED] follow up call with Alekhya about Student Potrol face Recognization
+2026-04-23 [PENDING] Had a call with Akshitha regarding the Instructor potrol Issues.
+2026-04-23 [PENDING] Had a call with Jyoshna regarding BITS Content Loading
+2026-04-23 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-23 [COMPLETED] Coordinated with Vinil and successfully completed the activity by 6:10 PM.
+2026-04-23 [PENDING] Communicative Tracker Message Shared with Student Group
+2026-04-23 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-23 [COMPLETED] The workshop certificates have been successfully generated.
+2026-04-23 [PENDING] Had a call with Akshitha about BITS content loading
+2026-04-22 [PENDING] coordinated with students regarding the section issues
+2026-04-22 [COMPLETED] Had a call with Alekya regarding student Attendance percentage decreasing  Issue .
+2026-04-22 [COMPLETED] Updated Staff Attendance sheet
+2026-04-22 [COMPLETED] Updated Staff Attendance sheet
+2026-04-22 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-22 [PENDING] Had a call with Alekya(Central Team) about LMS face recognization Issues and shared a details with her.
+2026-04-22 [PENDING] Communicative Tracker Message Shared with Student Group
+2026-04-22 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-22 [PENDING] Absentees click & share update
+2026-04-22 [COMPLETED] Went for SK-3 restest Invigilation
+2026-04-22 [COMPLETED] Had a call with Alekya Regarding the GRIT  issue.
+2026-04-22 [COMPLETED] Absentees click & share update
+2026-04-22 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-22 [PENDING] coordinate with sc team regarding today sk-3 retest and also make the followup calls with the students.
+2026-04-22 [COMPLETED] Went For GRIT Invigilation
+2026-04-22 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-22 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-22 [COMPLETED] Had a call with Chandrakanth to discuss updates on the today Club Activity
+2026-04-22 [COMPLETED] Had a call with Jyoshna regarding BITS Content Loading
+2026-04-22 [PENDING] Coordinated with Vital (Facilities Team) regarding Today Activity Logistics.
+2026-04-22 [COMPLETED] Coordinated with Vinil (NSGC CLUB President) about today event
+2026-04-21 [PENDING] Resolved SEB issues during the exam in the exam hall.
+2026-04-21 [COMPLETED] Ensuring the instructor is present for the Invigilation are not.
+2026-04-21 [COMPLETED] Created attendance sheet and uploaded the data to the Django portal.
+2026-04-21 [PENDING] Organized Skill Assessment -3 Exam
+2026-04-21 [COMPLETED] Sync with kartikh and meena
+2026-04-21 [PENDING] Student Crowd Management and Monitoring
+2026-04-21 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-21 [COMPLETED] Absentees click & share update
+2026-04-21 [COMPLETED] Updated Staff Attendance sheet
+2026-04-21 [COMPLETED] Marked SEB QR attendance for each student during  Skill Assessment -3.
+2026-04-20 [COMPLETED] Updated Staff Attendance sheet
+2026-04-20 [COMPLETED] Updated Staff Attendance sheet
+2026-04-20 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-20 [COMPLETED] Call with chevella ops team
+2026-04-20 [COMPLETED] Had a call with Vignesh(Instructor)
+2026-04-20 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-20 [PENDING] Communicative Tracker Message Shared with Student Group
+2026-04-20 [PENDING] SEB Trial Test Conducted
+2026-04-20 [COMPLETED] Absentees click & share update
+2026-04-20 [COMPLETED] Sync up with shivika
+2026-04-20 [COMPLETED] Sync Up With Karthik
+2026-04-20 [COMPLETED] Had a call with Chandrakanth regarding the Communicative Tracker Access
+2026-04-20 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-20 [COMPLETED] Had a call with Akshitha regarding student SQL Module re conducting for section 1
+2026-04-20 [COMPLETED] Follow-up with SC Team
+2026-04-20 [COMPLETED] Updated the SEB training test tracker
+2026-04-20 [PENDING] had a call with sunil(central Team ) About LMS Issue.
+2026-04-20 [COMPLETED] Coordinated with Vital (Facilities Team) regarding activity prizes.
+2026-04-20 [COMPLETED] Had a call with Jyoshna regarding module
+2026-04-20 [COMPLETED] Had a discussion with Vital(Facilities) regarding Seating Arrangement
+2026-04-20 [COMPLETED] Resolved SEB microphone issues for some students.
+2026-04-20 [COMPLETED] follow up with  NSGC President about upcoming Club Activity
+2026-04-20 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-20 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-20 [COMPLETED] I took KT from Karthik regarding certificate generation.
+2026-04-20 [COMPLETED] Had a call with Sanjeev (Student Engagement Team) regarding Sheet access and shared details With Him.
+2026-04-20 [COMPLETED] changes  in schedule due to instructor last minute Leave
+2026-04-20 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-20 [COMPLETED] SEB Trial Test Conducted for Section 4,5
+2026-04-20 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-20 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-20 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-20 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-19 [PENDING] Sync Up With Karthik
+2026-04-19 [COMPLETED] Updated Staff Attendance sheet
+2026-04-16 [COMPLETED] Sync up with shivika
+2026-04-16 [COMPLETED] “Coordinated with Vital Facilities regarding club activity rewards
+2026-04-16 [COMPLETED] Call with chevella ops team
+2026-04-16 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-16 [COMPLETED] Absentees click & share update
+2026-04-16 [PENDING] Sync Up With Karthik
+2026-04-16 [COMPLETED] SEB Trial Test Conducted for Section 1,2.
+2026-04-16 [COMPLETED] followup with Vital (Facilities Team) regarding activity prizes.
+2026-04-16 [COMPLETED] Ensuring the instructor is present for the session.
+2026-04-16 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-16 [PENDING] Communicative Tracker Message Shared with Student Group
+2026-04-16 [COMPLETED] Updated Staff Attendance sheet
+2026-04-16 [COMPLETED] Absentees click & share update
+2026-04-16 [COMPLETED] Updated Staff Attendance sheet
+2026-04-16 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-16 [COMPLETED] Created a click-and-share message for students regarding workshop certificates and shared it with the SC team
+2026-04-16 [COMPLETED] Had a discussion with the Sports Activity Club Vice President regarding the Tomorrow event and requested them to share the  (SOP)
+2026-04-15 [COMPLETED] Sync up with Chevella ops team
+2026-04-15 [COMPLETED] Had a call with Akshitha regarding the SQL course quiz
+2026-04-15 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-15 [COMPLETED] Sync with kartikh and meena
+2026-04-15 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-15 [COMPLETED] Agentathon 2026 Hackathon – Classroom Announcement (Session 5)
+2026-04-15 [PENDING] Ensuring the instructor is present for the session.
+2026-04-15 [COMPLETED] Absentees click & share update
+2026-04-15 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-14 [COMPLETED] Updated Staff Attendance sheet
+2026-04-13 [COMPLETED] Sync Up With Karthik
+2026-04-12 [COMPLETED] Sync Up With Karthik
+2026-04-12 [COMPLETED] Sync up with shivika
+2026-04-12 [COMPLETED] Updated Day Report
+2026-04-12 [COMPLETED] mad changes in schedules
+2026-04-12 [COMPLETED] NSGC Activity Follow-up
+2026-04-12 [COMPLETED] Meeting with NSGC President
+2026-04-12 [COMPLETED] Online Class Conducted – Instructor Unavailability
+2026-04-12 [COMPLETED] Sync up with kartikh and meena
+2026-04-12 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-12 [COMPLETED] Absentees click & share update
+2026-04-12 [PENDING] Had a call with Chandrakanth to discuss about on the  today Activity
+2026-04-12 [COMPLETED] SC Coordination – Dropout List
+2026-04-12 [COMPLETED] Updated Staff Attendance sheet
+2026-04-10 [COMPLETED] Updated Monday Schedule
+2026-04-10 [COMPLETED] Had a call with Chandrakanth to discuss updates on the Innovators Workshop
+2026-04-10 [COMPLETED] Updated Staff Attendance sheet
+2026-04-10 [COMPLETED] Updated Prod Sequence
+2026-04-10 [COMPLETED] Resolve Attendance Slots issue.
+2026-04-10 [COMPLETED] Follow-up on Club Activity Prizes
+2026-04-10 [COMPLETED] Had a call with Akshita( Central  Team) regarding dropout students’ data.”
+2026-04-10 [COMPLETED] Innovators Workshop Follow-up
+2026-04-10 [COMPLETED] Checking whether the instructor is present in the class
+2026-04-10 [COMPLETED] Had a discussion with Tech Instructors (Anil and Tharuni) regarding the Agenthon SOP, requested them to prepare the announcement, and delivered it across all classrooms.
+2026-04-10 [COMPLETED] Sync Up With Karthik
+2026-04-10 [COMPLETED] Call with Jyoshna regarding exam cancellation
+2026-04-10 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-10 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-10 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-10 [COMPLETED] Schedule Modification
+2026-04-10 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-10 [COMPLETED] Updated daily schedule Report UP to till now
+2026-04-10 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-10 [COMPLETED] updated  Daily Report
+2026-04-10 [COMPLETED] Coordinated with Jyosh regarding the attendance slot issue and successfully resolved it.
+2026-04-10 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-10 [COMPLETED] Sync with meena day plan
+2026-04-10 [COMPLETED] Checking whether the instructor is present in the class or not
+2026-04-10 [COMPLETED] Instructor Substitution and Session Management
+2026-04-10 [COMPLETED] Call with Jyoshna(Central Team) Regarding Day Report Sheet
+2026-04-10 [COMPLETED] Sync Up With Shivika about Day Plan
+2026-04-10 [COMPLETED] Call with Jyoshna regarding the DBMS Course Quiz Issues
+2026-04-10 [COMPLETED] Updated Staff Attendance sheet
+2026-04-10 [COMPLETED] Absentees click & share update
+2026-04-10 [COMPLETED] Updated Staff Attendance sheet
+2026-04-10 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-10 [COMPLETED] Had a call with Karthik regarding the Agenthon workshop.
+2026-04-10 [COMPLETED] Prepare Student Data for Face Recognition and submit it to Central Team ( Jyoshna)
+2026-04-10 [COMPLETED] Coordinated with Vital (Facilities Team) regarding activity prizes.
+2026-04-10 [COMPLETED] Activity Postponement Update
+2026-04-10 [COMPLETED] Had a call with Chandrakanth regarding today’s activities(Gen-AI Club Activity)(
+2026-04-10 [COMPLETED] Follow-up with SC Team
+2026-04-10 [COMPLETED] Updated Day Report
+2026-04-10 [COMPLETED] Call with Jyoshna Regarding Prod Sequence Issue.
+2026-04-10 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-10 [COMPLETED] Absentees Follow-up
+2026-04-09 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-09 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-09 [COMPLETED] Absentees click & share update
+2026-04-09 [COMPLETED] Parent Interactions & Absentee Follow-up
+2026-04-09 [COMPLETED] Had a call with Jyoshna regarding student GRIT Attendance Issue
+2026-04-07 [COMPLETED] Updated Staff Attendance sheet
+2026-04-07 [COMPLETED] The module quiz exam scheduled for tomorrow has been shared with all student groups.
+2026-04-07 [COMPLETED] Created Google meeting linka
+2026-04-07 [COMPLETED] The module quiz exam scheduled for tomorrow has been shared with all student groups.
+2026-04-07 [COMPLETED] Sunil shared the report, and I completed the report sheet.
+2026-04-07 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-07 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-07 [COMPLETED] Prepare Student Data for Face Recognition and submit it to Central Team ( Jyoshna)
+2026-04-07 [COMPLETED] Checking whether the instructor is present in the class or not
+2026-04-07 [COMPLETED] updated  Daily Report
+2026-04-07 [COMPLETED] Sync Up With Karthik
+2026-04-07 [COMPLETED] Coordinated with the Arts Club president and executed the activity.
+2026-04-07 [COMPLETED] Call with SC Regarding Absentee Calls and Parent Interactions
+2026-04-07 [COMPLETED] Updated daily schedule Report
+2026-04-07 [COMPLETED] created the Google Forms for Student Face Recognization
+2026-04-07 [COMPLETED] Sync Up With Karthik
+2026-04-05 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-05 [COMPLETED] Discussed the Agenthon workshop SOP with Chandrakanth.
+2026-04-05 [COMPLETED] Absentees click & share update
+2026-04-05 [COMPLETED] Communicated with the Arts Club president regarding today’s planned activity
+2026-04-05 [COMPLETED] Jyoshona shared the report, and I completed the report sheet.
+2026-04-05 [COMPLETED] Call with Jyoshna Regarding Attendance Slot Issue
+2026-04-05 [COMPLETED] Updated Staff Attendance sheet
+2026-04-05 [COMPLETED] Coordinated with Karthick regarding students visiting a government school for the Teach AI initiative and informed Vital  to grant permission for their visit
+2026-04-05 [COMPLETED] Call with Chandrakanth (Student Engagement Team) regarding today’s activity.
+2026-04-02 [COMPLETED] Student Crowd Management and Monitoring
+2026-04-02 [COMPLETED] Updated Staff Attendance sheet
+2026-04-02 [COMPLETED] Absentees Click & Share Update
+2026-04-02 [COMPLETED] Module Quiz Update Shared in Student Group
+2026-04-01 [COMPLETED] Communicative Tracker Message Shared with Student Group
+2026-04-01 [COMPLETED] Sync Up With Karthik
+2026-04-01 [COMPLETED] Updated activity dates
+2026-04-01 [COMPLETED] Attended Training Session
+2026-04-01 [COMPLETED] Absentees click & share update
+2026-04-01 [COMPLETED] Checking whether the instructor is present in the class or not
+2026-04-01 [COMPLETED] Upload Schedule in Admin Portal
+2026-04-01 [COMPLETED] Call with Jyoshna Regarding Attendance Slot Issue
+2026-03-31 [COMPLETED] Incorrect Attendance Slot Data Tracker
+2026-03-31 [COMPLETED] Upload Schedule in Admin Portal
+2026-03-31 [COMPLETED] Section Attendence Issue
+2026-03-31 [COMPLETED] Communicative Tracker – Student Group Update
+2026-03-31 [COMPLETED] Schedule Daily Report

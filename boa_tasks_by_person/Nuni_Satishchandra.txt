@@ -1,0 +1,60 @@
+BOA: Nuni Satishchandra
+Total tasks: 57
+
+2026-06-14 [PENDING] Mid sem exams -2
+2026-05-27 [COMPLETED] Taking care of the Gen AI Club Activity
+2026-05-27 [COMPLETED] Inviligation For GRIT Exam
+2026-05-27 [COMPLETED] Creating Roaster Forms and Marking the Attendence in the Roaster Forms
+2026-05-27 [COMPLETED] Taking Attendence and click and shares for the Absentees
+2026-05-27 [COMPLETED] Organising -Innovators work shop
+2026-05-27 [COMPLETED] Giving Student data and filling the time table sheet for the Skill Assessement - 4
+2026-05-27 [COMPLETED] Working on -Malpractices cares in GRIT-3
+2026-05-27 [COMPLETED] Bench Marking for the skill assessement 3 in all classrooms
+2026-05-27 [COMPLETED] Resolving the Issues in GRIT Exam for the students
+2026-05-27 [COMPLETED] Follow up on the quotation for the Sport Requirments
+2026-05-27 [COMPLETED] GRIT -2 Analysis
+2026-05-27 [COMPLETED] Inviligation for Skill Assessement - 3
+2026-05-27 [COMPLETED] Working on Student Tickets ,Yesterday issue
+2026-05-27 [COMPLETED] Stand Up With Team -last week review and current week plan
+2026-04-28 [PENDING] Organising -Influencer work shop
+2026-04-20 [COMPLETED] 🚀 5.0 Innovation Sprint — 08 | Social Media Timeline
+2026-04-20 [COMPLETED] Updating the Mile stone sheet for this week and the last week.
+2026-04-20 [COMPLETED] Making the time table for next day and scheduling in Admin Portal
+2026-04-20 [COMPLETED] Conducing web dev -2 Modul quizz
+2026-04-20 [COMPLETED] SEB Exam Trail
+2026-04-19 [PENDING] Meeting with Ops team -Week Milestone ,GRIT ,Sem -Exams
+2026-04-14 [PENDING] Team Stand Up -Student Attendence, events , syllabus completion
+2026-04-12 [PENDING] 🚀 5.0 Innovation Sprint — 05 | Judging Rubric
+2026-04-12 [PENDING] Preparing 2nd week milestone and review on 1st week
+2026-04-12 [PENDING] Conducting -Ad Tech club activity
+2026-04-12 [PENDING] 🚀 5.0 Innovation Sprint — 04 | Event Day Flow
+2026-04-08 [COMPLETED] Scheduling in Admin portal
+2026-04-08 [COMPLETED] Sharing the Messages in student Community Groups following Communication Tracker
+2026-04-08 [COMPLETED] Updating the Report Sheet and Scheduling in Admin Portal
+2026-04-08 [COMPLETED] Helping the Success Coaches To fill the student Achievements Sheet
+2026-04-08 [COMPLETED] Attending the KT Regarding the Uniconnect app likr freezing the dates and about the Events
+2026-04-08 [COMPLETED] Filling the Face Recognisation Sheet given by sai venkat and by keeping the student Details like photos,NIAT ID's and Mails
+2026-04-08 [COMPLETED] Resolving the wifi issue by connecting with gummadi srinivasarao garu
+2026-04-08 [COMPLETED] Updating the Sheet of Holidays and Exams sheet Given by Alekya
+2026-04-08 [PENDING] Sync Up with PM Regarding the JFM Goals
+2026-04-08 [COMPLETED] Connecting with Srujan Regarding the issues in teams app and resolving them throught the day
+2026-04-08 [COMPLETED] Taking Attendence in Section 3 and making click and shares for absentees
+2026-04-08 [COMPLETED] Updating the Report Sheet
+2026-04-08 [COMPLETED] Scheduling in admin portal and updating the daily report sheet
+2026-04-08 [COMPLETED] Loading Attendence in Django portal for all 3 sections
+2026-04-08 [COMPLETED] Sharing the Ops Tracker sheet to the staff and updating the Attendence in the sheet
+2026-04-05 [COMPLETED] Creating The Section Wise Online Google Meet Links and sharing them with students and the instructors
+2026-04-05 [COMPLETED] Updating the University Report Sheet Given by Alekya
+2026-04-05 [COMPLETED] Scheduling in Admin Portal and escalating the instructor loading issue to sai venkat or sunil
+2026-04-05 [COMPLETED] Updating the AP&TS NIAT Meet sheet by adding their mobile numbers,NIAT ID'S,Names,Attendence,Campus,Section and Location
+2026-04-05 [COMPLETED] Taking Attendence of the students in every slot and making the click and shares for the 1st slot Absentees
+2026-04-01 [COMPLETED] Connected with sanjeev regarding the Event reports sheet and update of the sheet
+2026-04-01 [COMPLETED] Organising -GRIT Contest
+2026-04-01 [COMPLETED] Connecting with Prasanth Facilities Team Regarding the Water Dispenser and about the vendor
+2026-03-31 [COMPLETED] Team Meeting -GRIT How it works
+2026-03-31 [COMPLETED] Updating GRIT -SLOTS -April 1st week
+2026-03-31 [COMPLETED] Conducting Innovators work shop
+2026-03-31 [COMPLETED] Review -Last week Milestone and Action itams
+2026-03-31 [COMPLETED] Giving the Skill Assessement Student data to the assessement ops team
+2026-03-31 [COMPLETED] Updating -April month Calender
+2026-03-31 [COMPLETED] Organising -FDP -1.0

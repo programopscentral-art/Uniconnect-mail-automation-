@@ -1,0 +1,294 @@
+BOA: Nijanthan Krishnamoorthy
+Total tasks: 291
+
+2026-06-19 [PENDING] Prepare individual feedback for trainees based on assessments and task performance
+2026-06-16 [PENDING] Prepare individual feedback for trainees based on assessments and task performance
+2026-06-16 [PENDING] Update assessment trackers and evaluation records.
+2026-06-16 [PENDING] Training - Review documentation quality and identify areas for improvement.
+2026-06-16 [PENDING] Training for New Batch – Evaluation Activities
+2026-06-16 [PENDING] Review Content Unlocking SOP submissions and assess process understanding
+2026-06-16 [PENDING] Evaluate Soft Skills assessment submissions and calculate scores
+2026-05-21 [PENDING] Practical Exam Escalations
+2026-05-21 [PENDING] TN Hiring sheet and updates
+2026-05-21 [PENDING] Sync up with Central team regarding New Joiners
+2026-05-21 [COMPLETED] Attendance update -  Instructors,Ops team, Sc's and New Joiners
+2026-05-20 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-05-20 [PENDING] Update the On Campus Attendance Instructors our staffs
+2026-05-20 [COMPLETED] Coordinate New Employees
+2026-05-20 [COMPLETED] GEN AI - Club Activity (Prompt wars)
+2026-05-20 [PENDING] Lock Unlock Classrooms and staffroom
+2026-05-20 [PENDING] Sync up with Shivakumar sir regarding the alloted 5.O lab
+2026-05-20 [COMPLETED] Work on Skill assessment result sheet and share it with Instructors
+2026-05-20 [COMPLETED] Update Attendance for New Joiners
+2026-05-20 [PENDING] SEM 2 Question paper
+2026-05-20 [COMPLETED] Workshop slots sheet update
+2026-05-20 [COMPLETED] Interview - BOA
+2026-05-20 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-05-20 [COMPLETED] Create PPT for Program Ops Hiring Plan – Tamil Nadu
+2026-05-20 [COMPLETED] Daily Schedule Report
+2026-05-20 [COMPLETED] Attendance update
+2026-05-20 [COMPLETED] Followup on candidates for the Interview
+2026-05-20 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-05-20 [COMPLETED] Plan for Tomorrow's Practical exam
+2026-05-20 [PENDING] Practical Exam - Today
+2026-05-20 [PENDING] Hiring - Calling And Shortlisting
+2026-05-20 [PENDING] Hiring - Interviews
+2026-05-20 [PENDING] Sync up with Amal for the measurement for 5.0 lab
+2026-05-12 [PENDING] Certificates for Vector Search Masterclass Building LLM - Certificates
+2026-05-12 [PENDING] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-05-12 [PENDING] Scheduling Interviews for BOA and PM Candidates
+2026-05-12 [PENDING] Model Practical Exam Coordination
+2026-05-06 [COMPLETED] Lock Unlock Classrooms
+2026-05-06 [COMPLETED] Exams and Holidays list sheet update
+2026-05-06 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-05-06 [COMPLETED] Update the Attendence for Instructors and our staffs
+2026-05-06 [COMPLETED] Click & Share - Master class
+2026-05-06 [PENDING] Lock Unlock Classrooms and staffroom
+2026-05-06 [PENDING] Attendance update
+2026-05-06 [COMPLETED] Media Club activity
+2026-05-06 [COMPLETED] Certificates for Murk AI Hackathon
+2026-05-06 [COMPLETED] Report sheet
+2026-05-05 [PENDING] Lock Unlock Classrooms and staffroom
+2026-05-05 [COMPLETED] Fees reminder sheet update
+2026-05-05 [COMPLETED] To update the sheet for schedule, Scheduling the classes and Exams in Admin portal
+2026-05-04 [PENDING] Update the Attendence for Instructors and our staffs
+2026-04-29 [PENDING] Coordinating Entrepreneurship Event
+2026-04-29 [COMPLETED] PTM Report making
+2026-04-29 [COMPLETED] Sync up with Central Team POC
+2026-04-28 [COMPLETED] Attendance update
+2026-04-28 [COMPLETED] Parent Visit - Next batch
+2026-04-28 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-28 [COMPLETED] Schedule classes for 3 sections
+2026-04-28 [PENDING] Instructor activity sheet
+2026-04-28 [COMPLETED] Skill Assessment -(Full stack and DBMS)
+2026-04-28 [COMPLETED] direct New Instructor for Day 1
+2026-04-28 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-04-28 [COMPLETED] Report Sheet
+2026-04-27 [PENDING] Facilities and Infra Pending report
+2026-04-27 [PENDING] Lock Unlock Classrooms and staffroom
+2026-04-20 [COMPLETED] Daily Schedule
+2026-04-20 [COMPLETED] NIAT App and LMS Escalations
+2026-04-20 [COMPLETED] Parent Visit - Next batch
+2026-04-20 [COMPLETED] Vector Search Certificate
+2026-04-20 [COMPLETED] Create SOP for POst Admission - crescent
+2026-04-20 [COMPLETED] Instructor activity details
+2026-04-20 [COMPLETED] Sync up with Club presidents
+2026-04-20 [COMPLETED] Follow ups - Estate office
+2026-04-20 [COMPLETED] Follow up on Prakash sir regarding INFRA
+2026-04-20 [COMPLETED] Attendance update
+2026-04-20 [COMPLETED] Electrical works - Infra
+2026-04-20 [COMPLETED] Create a Click & Share
+2026-04-20 [COMPLETED] Connecting with New Instructor
+2026-04-20 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-20 [COMPLETED] Off Dates - Django
+2026-04-20 [COMPLETED] NIAT App and LMS-related escalations, coordinating with central teams
+2026-04-20 [COMPLETED] Course File - Instructor
+2026-04-20 [COMPLETED] SEB trial Test
+2026-04-16 [COMPLETED] Followup and accommodation on New Instructor
+2026-04-16 [COMPLETED] Print outs on Documents - PTM
+2026-04-16 [COMPLETED] syncy up wit shivkumar sir regarding wifi fo classrooms
+2026-04-16 [PENDING] Daily Report Sheet
+2026-04-15 [COMPLETED] Instructors daily activities
+2026-04-15 [COMPLETED] Escalations - NIAT App and LMS
+2026-04-15 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-15 [COMPLETED] AC- Service
+2026-04-15 [PENDING] Daily Report Sheet
+2026-04-14 [COMPLETED] Syncup and Support Media Team
+2026-04-14 [COMPLETED] Sync up with Engagement team regarding the Advance tech Event
+2026-04-14 [COMPLETED] Daily Schedule Report
+2026-04-14 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-14 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-14 [COMPLETED] Sync up with Zubair sir regarding Infra
+2026-04-14 [COMPLETED] Attendance
+2026-04-14 [COMPLETED] Daily schedule - Sheet, Portal
+2026-04-14 [COMPLETED] Daily Schedule
+2026-04-14 [COMPLETED] Attendance update
+2026-04-10 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-04-10 [COMPLETED] Instructor activity details
+2026-04-09 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-09 [COMPLETED] Ops Team Meeting - MINT
+2026-04-09 [COMPLETED] NIAT app and LMS-related escalations
+2026-04-09 [COMPLETED] Price distribution -  GRIT Reel contest  photo
+2026-04-09 [COMPLETED] Sync up with Kadhar sir regarding Auditorium for student documentary shoot
+2026-04-09 [COMPLETED] Parent Visit - Next batch
+2026-04-08 [COMPLETED] NIAT App and LMS Escalations
+2026-04-08 [COMPLETED] Support Media team regarding Shoot for student documentary
+2026-04-08 [COMPLETED] LMS - NIAT App Escalations
+2026-04-08 [COMPLETED] CLICK&SHARE- PTM(Parents Teacher Meeting)
+2026-04-07 [COMPLETED] Sync up with Paneer sir regarding shoot in Library for students documentary
+2026-04-07 [COMPLETED] Sync up - Kadhar sir and Kareem sir
+2026-04-07 [COMPLETED] Daily Schedule Report
+2026-04-07 [COMPLETED] Attendance Update
+2026-04-07 [COMPLETED] Schedule
+2026-04-07 [COMPLETED] Instructors daily activities
+2026-04-07 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] Attendance update
+2026-04-07 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-04-07 [COMPLETED] Media Club Activate
+2026-04-06 [COMPLETED] CCM
+2026-04-05 [COMPLETED] Face recognition data
+2026-04-05 [COMPLETED] Daily Report Sheet
+2026-04-05 [COMPLETED] Scheduling
+2026-04-05 [COMPLETED] To track courier from the procurement team
+2026-04-05 [COMPLETED] LMS, NIAT App -related escalations
+2026-04-05 [COMPLETED] LMS and NIAT App -related escalations, coordinating with central teams
+2026-04-03 [COMPLETED] Sync up with Shivkumar sir regarding the Wifi
+2026-04-03 [COMPLETED] Attendance update
+2026-04-03 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-04-03 [COMPLETED] Coordinate Online Aptitude workshop and online class
+2026-04-03 [COMPLETED] Sync up with Librarian sir regarding the shoot for student documentary
+2026-04-01 [COMPLETED] Organize Innovators workshop
+2026-04-01 [COMPLETED] Sync up with Zubair sir regarding Infra
+2026-04-01 [COMPLETED] Schedule
+2026-04-01 [COMPLETED] Communication Tracker
+2026-04-01 [COMPLETED] Sync up with Estate office team regarding AC
+2026-04-01 [COMPLETED] Skill Assessment - Escalations
+2026-03-31 [COMPLETED] Skill Assessment Invigilation and Escalations
+2026-03-31 [COMPLETED] Follow up on the Exam center booking
+2026-03-31 [COMPLETED] Daily Report Sheet
+2026-03-31 [COMPLETED] LMS, NIAT App -related escalations
+2026-03-31 [COMPLETED] Invigilation for Skill assessment
+2026-03-25 [COMPLETED] Attendance
+2026-03-24 [COMPLETED] Schedule daily report
+2026-03-24 [COMPLETED] NIAT APP and LMS-related escalations
+2026-03-24 [COMPLETED] LMS and NIAT App Escalations
+2026-03-24 [COMPLETED] interaction and update
+2026-03-23 [COMPLETED] Click & Share
+2026-03-22 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-03-18 [COMPLETED] Update the Attendence for Instructors, and our staffs
+2026-03-18 [COMPLETED] Daily Report Sheet
+2026-03-18 [COMPLETED] Instructor Activities
+2026-03-18 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-03-18 [COMPLETED] Attendance Update
+2026-03-16 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-03-16 [COMPLETED] Syncup with Sales POC
+2026-03-16 [COMPLETED] Attendance update
+2026-03-15 [COMPLETED] Hall availability for upcoming events
+2026-03-15 [COMPLETED] LMS, NIAT App -related escalations
+2026-03-15 [COMPLETED] Automation - Schedule
+2026-03-15 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-03-15 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-03-15 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-03-15 [COMPLETED] Communication Tracker
+2026-03-15 [COMPLETED] Announcement - Murf AI workshop
+2026-03-15 [COMPLETED] Daily Schedule
+2026-03-15 [COMPLETED] Admission POC Syncup
+2026-03-15 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-03-10 [COMPLETED] Womens day celebration for NIAT students
+2026-03-10 [CANCELLED] Interactions Update
+2026-03-10 [COMPLETED] daily schedule
+2026-03-05 [COMPLETED] Escalations - NIAT App and LMS
+2026-03-05 [COMPLETED] Attendance update
+2026-03-05 [COMPLETED] Invitation for Buildathon - Delhi
+2026-03-05 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-03-05 [COMPLETED] Attendance Marking
+2026-03-05 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-03-05 [COMPLETED] Interactions Update
+2026-03-04 [COMPLETED] Schedule daily report
+2026-02-26 [COMPLETED] Escalations - NIAT App and LMS
+2026-02-26 [COMPLETED] Attendance update
+2026-02-26 [COMPLETED] Daily Schedule
+2026-02-26 [COMPLETED] Interaction Update
+2026-02-26 [COMPLETED] Infrastructure Escalations
+2026-02-25 [COMPLETED] Interactions Update
+2026-02-25 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-25 [COMPLETED] Schedule daily report
+2026-02-25 [COMPLETED] Attendance update
+2026-02-25 [COMPLETED] Influence Workshop
+2026-02-24 [COMPLETED] LMS, NIAT App -related escalations
+2026-02-24 [COMPLETED] Daily Schedule
+2026-02-24 [COMPLETED] Classrooms and Staffrooms
+2026-02-24 [COMPLETED] Admin Office - Hall confirmation
+2026-02-24 [COMPLETED] Attendance update
+2026-02-23 [COMPLETED] Parent Visit - Next batch
+2026-02-23 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-23 [COMPLETED] CAT 2 Question Papers
+2026-02-23 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-23 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-23 [COMPLETED] Innovators Workshop
+2026-02-22 [COMPLETED] Sessions Tracking Sheet_NIAT
+2026-02-22 [COMPLETED] Interactions Update
+2026-02-22 [COMPLETED] Attendance update
+2026-02-22 [COMPLETED] GRIT registrations
+2026-02-22 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-20 [COMPLETED] Registration - Innovators workshop
+2026-02-20 [COMPLETED] Infrastructure Escalations - AC and WIfi
+2026-02-20 [COMPLETED] Infrastructure Escalations - Electrical
+2026-02-20 [COMPLETED] Click & Share GRIT 2026–27
+2026-02-20 [COMPLETED] Communication Tracker
+2026-02-20 [COMPLETED] LMS, NIAT App -related escalations
+2026-02-20 [COMPLETED] Attendance Update
+2026-02-20 [COMPLETED] Interactions Update
+2026-02-20 [COMPLETED] Daily Schedule
+2026-02-18 [COMPLETED] Daily Schedule
+2026-02-18 [COMPLETED] Communication Tracker
+2026-02-18 [COMPLETED] LMS-related escalations
+2026-02-18 [COMPLETED] Makers Conclave Exam
+2026-02-17 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-17 [COMPLETED] Staff Attendence
+2026-02-17 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-17 [COMPLETED] interaction and update
+2026-02-17 [COMPLETED] daily schedule
+2026-02-15 [COMPLETED] daily schedule
+2026-02-15 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-15 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-15 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-15 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-15 [COMPLETED] Seminar hall booking for event
+2026-02-13 [IN_PROGRESS] Parent Interaction Update
+2026-02-13 [COMPLETED] Daily Report Sheet
+2026-02-13 [COMPLETED] Click & Share
+2026-02-13 [COMPLETED] Attendance update
+2026-02-11 [COMPLETED] SEB Trail Test
+2026-02-11 [COMPLETED] Escalations - NIAT App and LMS
+2026-02-11 [COMPLETED] Daily Schedule
+2026-02-11 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-11 [COMPLETED] Attendance update
+2026-02-10 [COMPLETED] CP Exam execution
+2026-02-10 [COMPLETED] Procurement & Maintenance
+2026-02-10 [COMPLETED] Interaction Update
+2026-02-10 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-10 [COMPLETED] NIAT-App and LMS Escalations
+2026-02-10 [COMPLETED] daily schedule
+2026-02-10 [COMPLETED] Permission for Workshops
+2026-02-09 [COMPLETED] daily schedule
+2026-02-09 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-02-09 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-09 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-09 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-08 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-08 [COMPLETED] Lock Classrooms and staffroom
+2026-02-08 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-08 [COMPLETED] daily schedule
+2026-02-08 [COMPLETED] Coordinate Mentors Meeting
+2026-02-05 [COMPLETED] Click n Share
+2026-02-05 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-05 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-05 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-02-05 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-05 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-04 [COMPLETED] Mapping Students responses and their UID's
+2026-02-04 [COMPLETED] Access for Guest house for Curriculum Team
+2026-02-04 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-04 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-04 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-02-04 [COMPLETED] Instructor Session Tracker
+2026-02-04 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-04 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-03 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-03 [COMPLETED] Taking Parents for Campus Visit
+2026-02-03 [COMPLETED] Instructors daily activities
+2026-02-03 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal
+2026-02-03 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-03 [COMPLETED] Lock Unlock Classrooms and staffroom
+2026-02-03 [COMPLETED] Attendance Marking
+2026-02-02 [COMPLETED] Attendance Update
+2026-02-02 [COMPLETED] Instructors and mentors Activities detail
+2026-02-02 [COMPLETED] NIAT app and LMS-related escalations
+2026-02-02 [COMPLETED] Follow ups - Media Team, Crescent Admin officer
+2026-02-02 [COMPLETED] daily schedule
+2026-02-02 [COMPLETED] Coordinate with the Student Engagement team regarding events and activities
+2026-02-01 [COMPLETED] collect the student and parent interaction and update in the sheet
+2026-02-01 [COMPLETED] Update the Attendence for Instructors,Mentors and our staffs
+2026-02-01 [COMPLETED] LMS-related escalations, coordinating with central teams
+2026-02-01 [COMPLETED] To update the sheet for daily schedule, Scheduling the classes for instructors in Admin portal

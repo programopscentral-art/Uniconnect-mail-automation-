@@ -1,0 +1,158 @@
+BOA: Mahammad Abdulrehman
+Total tasks: 155
+
+2026-05-12 [COMPLETED] Update Pending Attendance Records
+2026-05-12 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-12 [COMPLETED] Create Attendance Slots
+2026-05-12 [COMPLETED] Resolve Student App Attendance Issues
+2026-05-12 [COMPLETED] Update Daily Report (EOD)
+2026-05-06 [COMPLETED] Update Daily Report (EOD)
+2026-05-06 [COMPLETED] Seating Arrangement
+2026-05-06 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-05 [COMPLETED] Convert Assignment Question Sets from Sheets to Docs
+2026-05-05 [COMPLETED] Seating Arrangement
+2026-05-05 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-05 [COMPLETED] Resolve Student App Attendance Issues
+2026-05-05 [COMPLETED] Update Pending Attendance Records
+2026-05-05 [COMPLETED] Update Daily Report (EOD)
+2026-05-05 [COMPLETED] GRIT Exam Coordination
+2026-05-05 [COMPLETED] Convert Assignment Question Sets from Sheets to Docs
+2026-05-04 [COMPLETED] Update Daily Report (EOD)
+2026-05-04 [COMPLETED] Seating Arrangement
+2026-05-04 [COMPLETED] Coordination with Central Team for Assignment Question Papers
+2026-05-04 [COMPLETED] Update Pending Attendance Records
+2026-05-04 [COMPLETED] GRIT Exam Coordination
+2026-05-04 [COMPLETED] Preparation of Consolidated Marks (Mid & Assignment)
+2026-05-04 [COMPLETED] Resolve Student App Attendance Issues
+2026-05-04 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-03 [COMPLETED] Update Pending Attendance Records
+2026-05-03 [COMPLETED] GRIT Exam Coordination
+2026-05-03 [COMPLETED] Resolve Student App Attendance Issues
+2026-05-03 [COMPLETED] Update Daily Report (EOD)
+2026-05-03 [COMPLETED] Seating Arrangement
+2026-05-03 [COMPLETED] Update Current Week’s Schedule
+2026-05-03 [COMPLETED] Coordinated with instructor for Assignment & Mid-1 Marks Entry
+2026-05-03 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-02 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-05-01 [COMPLETED] Update Daily Report (EOD)
+2026-05-01 [COMPLETED] Create Attendance Slots for Next Week
+2026-05-01 [COMPLETED] Resolve Student App Attendance Issues
+2026-05-01 [COMPLETED] Event Report Coordination
+2026-05-01 [COMPLETED] Daily Tracker & Communication Updates
+2026-05-01 [COMPLETED] Prepare Next Week’s Schedule
+2026-05-01 [COMPLETED] Update Pending Attendance Records
+2026-05-01 [COMPLETED] Mid Failure Counselling Coordination
+2026-05-01 [COMPLETED] Coordinated with instructor for Assignment & Mid-1 Marks Entry
+2026-04-30 [COMPLETED] Coordination Meeting for Novoice Badge with Students
+2026-04-30 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-30 [COMPLETED] Coordination with Instructor for Assignment and Mid-1 Marks Entry
+2026-04-30 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-30 [COMPLETED] Update Daily Report (EOD)
+2026-04-30 [COMPLETED] Update Pending Attendance Records
+2026-04-29 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-29 [COMPLETED] Update Daily Report (EOD)
+2026-04-29 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-29 [COMPLETED] Update Pending Attendance Records
+2026-04-28 [COMPLETED] Upload of Mid-1 Marks in Award List Sheet
+2026-04-28 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-28 [COMPLETED] Update Daily Report (EOD)
+2026-04-28 [COMPLETED] Upload of Assignment Marks in the Sheet
+2026-04-28 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-28 [COMPLETED] Update Pending Attendance Records
+2026-04-28 [COMPLETED] Mid Failure counselling Coordination
+2026-04-27 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-27 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-27 [COMPLETED] Update Pending Attendance Records
+2026-04-27 [COMPLETED] Upload of Mid-1 Marks in Award List Sheet
+2026-04-27 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-27 [COMPLETED] Upload of Assignment Marks in the Sheet
+2026-04-27 [COMPLETED] Update Daily Report (EOD)
+2026-04-26 [COMPLETED] Preparation of Mid-1 Failure List
+2026-04-26 [COMPLETED] Update Current Week’s Schedule
+2026-04-26 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-26 [COMPLETED] Update Daily Report (EOD)
+2026-04-26 [COMPLETED] Upload of Mid-1 Marks in Award List Sheet
+2026-04-26 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-24 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-24 [COMPLETED] Seating Arrangement
+2026-04-24 [COMPLETED] Prepare Next Week’s Schedule
+2026-04-24 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-24 [COMPLETED] GRIT Exam Coordination
+2026-04-24 [COMPLETED] Create Attendance Slots for Next Week
+2026-04-24 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-24 [COMPLETED] Update Daily Report (EOD)
+2026-04-23 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-23 [COMPLETED] Seating Arrangement
+2026-04-23 [COMPLETED] GRIT Exam Coordination
+2026-04-23 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-23 [COMPLETED] Update Daily Report (EOD)
+2026-04-22 [COMPLETED] GRIT Exam Coordination
+2026-04-22 [COMPLETED] Seating Arrangement
+2026-04-22 [COMPLETED] Update Pending Attendance Records
+2026-04-22 [COMPLETED] Update Daily Report (EOD)
+2026-04-22 [COMPLETED] Coordination with Central Team for Skill Assessment Re-Examination
+2026-04-22 [COMPLETED] Administration and Invigilation of Skill Assessment Re-Examinations
+2026-04-22 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-22 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-21 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-21 [COMPLETED] Seating Arrangement
+2026-04-21 [COMPLETED] Upload Pending Attendance
+2026-04-21 [COMPLETED] Update Daily Report (EOD)
+2026-04-21 [COMPLETED] GRIT Exam Coordination
+2026-04-21 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-19 [COMPLETED] Update Pending Attendance Records
+2026-04-19 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-19 [COMPLETED] Update Daily Report (EOD)
+2026-04-19 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-17 [COMPLETED] Update Pending Attendance Records
+2026-04-17 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-17 [COMPLETED] Create Attendance Slots for Next Week
+2026-04-17 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-16 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-16 [COMPLETED] Prepare Next Week’s Schedule
+2026-04-16 [COMPLETED] Update Daily Report (EOD)
+2026-04-16 [COMPLETED] Update SEB Mock Trial Test Status
+2026-04-16 [COMPLETED] SEB Mock Test Trial
+2026-04-16 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-15 [COMPLETED] Update Skill Assessment–4 Student Issues (Attendance Tracker)
+2026-04-15 [COMPLETED] Daily Tracker & Communication Updates
+2026-04-15 [COMPLETED] 5.0 Lab Components Verification
+2026-04-15 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-15 [COMPLETED] Syllabus Prediction & Scheduling for Revision Sessions
+2026-04-15 [COMPLETED] Update Daily Report (EOD)
+2026-04-15 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-14 [COMPLETED] Update Schedule Report Sheet
+2026-04-14 [COMPLETED] Daily Tracker & Communication Updates
+2026-04-14 [COMPLETED] Update Daily Report (EOD)
+2026-04-14 [COMPLETED] Coordinate on Skill Assessment 4 – In Progress
+2026-04-14 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-14 [COMPLETED] Skill Assessments – Operations & Invigilation
+2026-04-13 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-13 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-13 [COMPLETED] Update Pending Attendance Records
+2026-04-13 [COMPLETED] Update Schedule Report Sheet
+2026-04-13 [COMPLETED] Coordinate on Upcoming Skill Assessment – 4
+2026-04-13 [COMPLETED] Update Daily Report (EOD)
+2026-04-12 [COMPLETED] New Admission Parent Campus Visit & Interaction
+2026-04-12 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-12 [COMPLETED] Daily Tracker & Communication Updates
+2026-04-12 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-12 [COMPLETED] Coordinate on Upcoming Skill Assessment – 4
+2026-04-12 [COMPLETED] Update Schedule Report Sheet
+2026-04-12 [COMPLETED] Update Daily Report (EOD)
+2026-04-12 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-10 [COMPLETED] Update Schedule Report Sheet
+2026-04-10 [COMPLETED] Create Attendance Slots for Next Week
+2026-04-10 [COMPLETED] Resolve Student App Attendance Issues
+2026-04-10 [COMPLETED] Update Daily Report (EOD)
+2026-04-10 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-10 [COMPLETED] Coordinate on Upcoming Skill Assessment – 4
+2026-04-10 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-10 [COMPLETED] Prepare Next Week’s Schedule
+2026-04-09 [COMPLETED] Coordinate Class Scheduling with Central Team
+2026-04-09 [COMPLETED] Coordinate on Upcoming Skill Assessment – 4
+2026-04-09 [COMPLETED] Prepare Next Week’s Schedule
+2026-04-09 [COMPLETED] Update Admin Portal with Next Day Schedule (EOD)
+2026-04-09 [COMPLETED] Update Schedule Report Sheet
+2026-04-09 [COMPLETED] Update Daily Report (EOD)
+2026-04-09 [COMPLETED] Resolve Student App Attendance Issues

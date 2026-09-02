@@ -1,0 +1,64 @@
+BOA: Gyan Prakash Tiwari
+Total tasks: 61
+
+2026-06-03 [PENDING] Obtain an update on Kanishka's scholarship from the Registrar's Office.
+2026-06-03 [PENDING] Conduct any interviews that are scheduled for today.
+2026-06-03 [PENDING] Follow up with Avdhesh regarding the update of the OAP students' fee structure.
+2026-06-03 [COMPLETED] Submit documents of all faculty members who have left on the NIU payroll.
+2026-06-03 [PENDING] Follow up with JP Sir to check whether the update has been completed.
+2026-06-03 [COMPLETED] Conduct and monitor GRIT examination in Rooms 62 and 63 with the team.
+2026-06-03 [COMPLETED] 2. Manage and monitor internal exams smoothly with the team
+2026-06-03 [COMPLETED] Submit transition faculty details in the NIU payroll system
+2026-06-03 [COMPLETED] 1. Ensure collection of exam fees from all students
+2026-06-03 [COMPLETED] Collect fee receipts from the accounts department.
+2026-06-03 [COMPLETED] Coordinate with the Registrar Office to remove the names of 4 dropout students from the NIU portal.
+2026-06-03 [COMPLETED] Get the Physics syllabus added to the NIU portal with the help of Rakesh Chawla.
+2026-06-03 [COMPLETED] Met with Jasvinder regarding the Physics syllabus and exam-related discussion, and also coordinated with the exam cell to obtain Physics exam copies for reference.
+2026-06-03 [COMPLETED] Collect exam fees from students
+2026-06-03 [COMPLETED] Follow up with 27 students for pending hostel fee payments
+2026-06-03 [COMPLETED] * Follow up with hostel students who have pending fees and ensure payment is completed.
+2026-06-03 [COMPLETED] Collect ₹6,000 exam fees from students today
+2026-06-03 [COMPLETED] Liaise with SK Printing for standee requirements.
+2026-06-03 [COMPLETED] 5. Collect and verify fee receipts from the accounts department for students who have paid via NIU escrow accounts
+2026-06-03 [COMPLETED] Discuss internal exam lab arrangements with the NIU HOD and Jassi Sir
+2026-06-03 [COMPLETED] Update and verify sheets for NIU ERP, QR payments, and loan sanctioned data
+2026-06-03 [COMPLETED] Collect ₹6000 examination fees from students to clear their no-dues status.
+2026-06-03 [COMPLETED] Manage internal exams with the team.
+2026-06-03 [COMPLETED] 3. Discuss the Semester 2 internal examination planning with the team.
+2026-06-03 [COMPLETED] Collect Semester 2 exam fees from all sections.
+2026-06-03 [COMPLETED] Internal Examination — General
+2026-04-20 [COMPLETED] Rectify fee entry for Sashank and coordinate NIU portal access for Avinash Singh with Chawla Sir.
+2026-04-20 [COMPLETED] Execute classroom shifting for Section 1 (to SBM Block) and Section 4 (to Section 1), ensuring smooth transition and readiness (AC, internet, windows).
+2026-04-20 [IN_PROGRESS] Discuss and initiate salary slip process with Ram.
+2026-04-20 [COMPLETED] Completed classroom readiness check for all sections, ensuring proper functioning of AC, internet, windows, and overall infrastructure.
+2026-04-20 [IN_PROGRESS] Engage with NIU IT Head (Kazim Sir) regarding internet connectivity and student email IDs.
+2026-04-20 [COMPLETED] Resolve technical setup issue in Section 1 (laptop-to-TV connectivity). Update inventory records.
+2026-04-20 [IN_PROGRESS] Follow up with NIU HR (Vandana Ma’am) regarding exiting faculty documentation.
+2026-04-19 [PENDING] Collect the escrow amount receipt from the Accounts Department.
+2026-04-19 [PENDING] Coordinate with NIU HR to obtain documents of exiting faculty, such as offer letters, experience letters, salary slips, etc.
+2026-04-19 [PENDING] Follow up with Kazim sir regarding NIU email IDs for NxtWave students.
+2026-04-15 [COMPLETED] 3. Coordinate with Rakesh Chawla to get the Physics syllabus updated on the NIU portal
+2026-04-15 [COMPLETED] Conduct classroom readiness check for all sections (chairs, lights, fans, etc.).
+2026-04-15 [IN_PROGRESS] 4. Process faculty documents in NIU HR, including offer letters, experience letters, and salary slips
+2026-04-14 [IN_PROGRESS] * Process faculty documents in NIU HR (offer letter, experience letter, salary slips).
+2026-04-13 [PENDING] Internal Examination — General
+2026-04-08 [PENDING] 4. Send the Semester 3 reminder email through Click and Share.
+2026-04-08 [PENDING] 1. Collect pending hostel fees and examination fees from the students.
+2026-04-08 [PENDING] 2. Guide students to visit the accounts department to collect their fee receipts.
+2026-04-07 [PENDING] Change the section of student Sumit Kumar from Section 2 to Section 4 on the NIU portal
+2026-04-07 [PENDING] Guide students to collect their receipts from the Accounts Department and update the details in the sheets:
+2026-04-07 [PENDING] Collect hostel fees and exam fees from the students.
+2026-04-07 [PENDING] Activate Chetan Sharma’s NIU account:
+2026-04-06 [IN_PROGRESS] Collect hostel and examination fees from students
+2026-04-06 [IN_PROGRESS] Discuss internal exam-related matters with the team.
+2026-04-06 [IN_PROGRESS] Send students to the accounts section to collect their receipts
+2026-04-06 [IN_PROGRESS] Follow up with Kazim Sir regarding students’ NIU email IDs
+2026-04-05 [PENDING] Collect students’ semester and examination fees
+2026-04-05 [PENDING] Follow up with Kazim regarding students’ NIU email IDs
+2026-04-05 [PENDING] Get student Chetan’s NIU portal activated
+2026-04-05 [PENDING] Submit documents of NxtWave faculty shifted to the NIU payroll to the NIU HR department
+2026-04-05 [PENDING] Send exam fee payment details to the accounts department for receipt generation
+2026-04-03 [PENDING] Take follow-up from Kazim regarding students’ NIU email IDs
+2026-04-03 [PENDING] Update the inventory list in the sheets
+2026-04-01 [IN_PROGRESS] Create the inventory list today.
+2026-04-01 [IN_PROGRESS] Obtain approval from the NIU HOD via email regarding the 2nd semester internal exams.

@@ -1,0 +1,228 @@
+BOA: Pravin R
+Total tasks: 225
+
+2026-06-08 [COMPLETED] follow up with cashier
+2026-06-08 [COMPLETED] follow up with IT team
+2026-06-08 [COMPLETED] Collecting Parcel
+2026-06-08 [COMPLETED] Print out for refund letter
+2026-05-28 [COMPLETED] Follow up with Accounts team
+2026-05-28 [COMPLETED] Ensuring smooth process bootcamp
+2026-05-28 [COMPLETED] Follow up with Electrician
+2026-05-28 [COMPLETED] Infrastructure
+2026-05-26 [COMPLETED] Sync - up with ops team
+2026-05-26 [COMPLETED] Follow up with IT team
+2026-05-25 [COMPLETED] Follow up with Electrician
+2026-05-25 [COMPLETED] ensure smooth process of pratical exam
+2026-05-25 [COMPLETED] Sync - up with ops team
+2026-05-25 [COMPLETED] follow up with airtel service
+2026-05-25 [COMPLETED] finalize things for tomorrow pratical exam
+2026-05-25 [COMPLETED] Infrastructure
+2026-05-25 [COMPLETED] Collecting no due form
+2026-05-19 [COMPLETED] Infrastructure
+2026-05-19 [COMPLETED] Sync - up with ops team
+2026-05-19 [COMPLETED] Attendance
+2026-05-19 [COMPLETED] updating attendance
+2026-05-19 [COMPLETED] Assets Tracking
+2026-05-18 [COMPLETED] Assets Tracking
+2026-05-18 [COMPLETED] Ensuring smooth of GRIT EXAM
+2026-05-18 [COMPLETED] follow up with Airtel server team
+2026-05-18 [COMPLETED] Follow up with Accounts team
+2026-05-18 [COMPLETED] Attendance
+2026-05-18 [COMPLETED] Infrastructure
+2026-05-18 [COMPLETED] updating attendance
+2026-05-17 [COMPLETED] updating attendance
+2026-05-17 [COMPLETED] Connect with cashier
+2026-05-17 [COMPLETED] Infrastructure
+2026-05-17 [COMPLETED] Sync - up with ops team
+2026-05-17 [COMPLETED] Connect with CFO
+2026-05-17 [COMPLETED] Connect with DOA
+2026-05-17 [COMPLETED] Attendance
+2026-05-15 [COMPLETED] Assets Tracking
+2026-05-15 [COMPLETED] Connect with Airtel servies team
+2026-05-15 [COMPLETED] Attendance
+2026-05-15 [COMPLETED] Scheduling Interview
+2026-05-15 [COMPLETED] Ensure smooth process of Workshop
+2026-05-15 [COMPLETED] Infrastructure
+2026-05-15 [COMPLETED] Sync - up with ops team
+2026-05-14 [COMPLETED] updating attendance
+2026-05-14 [COMPLETED] Sync - up with ops team
+2026-05-14 [COMPLETED] Scheduling
+2026-05-14 [COMPLETED] Attendance
+2026-05-14 [COMPLETED] Follow up with Accounts team
+2026-05-14 [COMPLETED] Infrastructure
+2026-05-14 [COMPLETED] Assets Tracking
+2026-05-13 [COMPLETED] Connect with success coaches
+2026-05-13 [COMPLETED] Assets Tracking
+2026-05-13 [COMPLETED] Follow up with Accounts team
+2026-05-13 [COMPLETED] Updating Attendance
+2026-05-13 [COMPLETED] Reschedule Interview for candidates
+2026-05-13 [COMPLETED] Attendance
+2026-05-12 [COMPLETED] Updating Attendance
+2026-05-12 [COMPLETED] CAT 3 Examination
+2026-05-12 [COMPLETED] Infrastructure
+2026-05-12 [COMPLETED] Scheduling Interview for candidates
+2026-05-12 [COMPLETED] Meetings links
+2026-05-12 [COMPLETED] connect with Accounts team
+2026-05-12 [COMPLETED] Attendance
+2026-05-06 [COMPLETED] Connect with Amal sin
+2026-05-06 [COMPLETED] Assets Tracking
+2026-05-06 [COMPLETED] Infrastructure
+2026-05-06 [COMPLETED] Sync - up with ops team
+2026-05-06 [COMPLETED] Attendance
+2026-05-05 [COMPLETED] Arranging answer sheet
+2026-05-05 [COMPLETED] GRIT EXAM
+2026-05-05 [COMPLETED] Attendance
+2026-05-05 [COMPLETED] Infrastructure
+2026-05-05 [COMPLETED] Connect with Accounts team
+2026-05-05 [COMPLETED] Connect with electrician
+2026-05-05 [COMPLETED] Updating Attendance
+2026-05-05 [COMPLETED] Assets Tracking
+2026-05-04 [COMPLETED] Assets Tracking
+2026-05-04 [COMPLETED] ensure smooth process of GRIT exam
+2026-05-04 [COMPLETED] Updating Attendance
+2026-05-04 [COMPLETED] Follow up with IT team
+2026-05-04 [COMPLETED] connect with Registrar PA
+2026-05-04 [COMPLETED] Attendance
+2026-05-04 [COMPLETED] Infrastructure
+2026-05-04 [COMPLETED] Speak with Registrar PA
+2026-05-04 [COMPLETED] Monitoring online class
+2026-05-03 [COMPLETED] Arranging answer sheet
+2026-05-03 [COMPLETED] Infrastructure
+2026-05-03 [COMPLETED] Monitoring online class
+2026-05-03 [COMPLETED] Assets Tracking
+2026-05-03 [COMPLETED] Follow up with Accounts team
+2026-05-03 [COMPLETED] Updating Attendance
+2026-05-03 [COMPLETED] Follow up with IT team
+2026-05-03 [COMPLETED] Attendance
+2026-05-03 [COMPLETED] Invigilation GRIT Exam
+2026-04-29 [COMPLETED] Assets Tracking
+2026-04-29 [COMPLETED] Collecting  Answer sheet from University
+2026-04-29 [COMPLETED] Updating Attendance
+2026-04-29 [COMPLETED] Monitoring online class
+2026-04-29 [COMPLETED] Arranging Qus papers
+2026-04-29 [COMPLETED] Infrastructure
+2026-04-29 [COMPLETED] Attendance
+2026-04-28 [COMPLETED] Invigilation GRIT Exam
+2026-04-28 [COMPLETED] Assets Tracking
+2026-04-28 [COMPLETED] Follow up with Electrician
+2026-04-28 [COMPLETED] Follow up with IT team
+2026-04-28 [COMPLETED] Attendance
+2026-04-28 [COMPLETED] Updating Attendance
+2026-04-28 [COMPLETED] Follow up with COE office
+2026-04-28 [COMPLETED] Infrastructure
+2026-04-28 [COMPLETED] GRIT EXAM
+2026-04-27 [COMPLETED] Follow up with Accounts team
+2026-04-27 [COMPLETED] Assets Tracking
+2026-04-27 [COMPLETED] Infrastructure
+2026-04-27 [COMPLETED] Updating Attendance
+2026-04-27 [COMPLETED] Attendance
+2026-04-27 [COMPLETED] Giving CAT exam Circular and timetable
+2026-04-27 [COMPLETED] Getting sign from Dean
+2026-04-26 [COMPLETED] GRIT EXAMINATION
+2026-04-26 [COMPLETED] Invigilating GRIT exam
+2026-04-26 [COMPLETED] Infrastructure
+2026-04-26 [COMPLETED] Assets Tracking
+2026-04-26 [COMPLETED] Follow up with IT team
+2026-04-26 [IN_PROGRESS] Attendance
+2026-04-26 [COMPLETED] Updating Attendance
+2026-04-26 [COMPLETED] Follow up with Accounts team
+2026-04-24 [COMPLETED] Attendance
+2026-04-24 [COMPLETED] Follow up with IT team
+2026-04-24 [COMPLETED] GRIT EXAM
+2026-04-24 [COMPLETED] Infrastructure
+2026-04-24 [COMPLETED] Follow up with Accounts team
+2026-04-24 [COMPLETED] Assets Tracking
+2026-04-24 [COMPLETED] Follow up with Electrician
+2026-04-24 [COMPLETED] Sync - up with ops team
+2026-04-24 [COMPLETED] Monitoring online class
+2026-04-23 [COMPLETED] Attendance
+2026-04-23 [COMPLETED] Assets Tracking
+2026-04-23 [COMPLETED] GRIT Exam
+2026-04-23 [COMPLETED] Follow up with Accounts team
+2026-04-23 [COMPLETED] Follow up with IT team
+2026-04-23 [COMPLETED] Infrastructure
+2026-04-23 [COMPLETED] Workshop
+2026-04-23 [COMPLETED] Follow up with Electrician
+2026-04-21 [COMPLETED] Assets Tracking
+2026-04-21 [COMPLETED] Follow up with Accounts team
+2026-04-21 [COMPLETED] CAT examination
+2026-04-21 [COMPLETED] checking SEB status
+2026-04-21 [COMPLETED] Follow up with Electrician
+2026-04-21 [COMPLETED] Attendance
+2026-04-21 [COMPLETED] Sync - up with ops team
+2026-04-21 [COMPLETED] Invigilation
+2026-04-20 [COMPLETED] Attendance
+2026-04-20 [COMPLETED] CAT 2 Examination
+2026-04-20 [COMPLETED] Follow up with Electrician
+2026-04-20 [COMPLETED] Infrastructure
+2026-04-20 [COMPLETED] Follow up with IT team
+2026-04-20 [COMPLETED] Collecting Question paper
+2026-04-19 [COMPLETED] Follow up with IT team
+2026-04-19 [COMPLETED] CAT examination
+2026-04-19 [COMPLETED] Infrastructure
+2026-04-19 [COMPLETED] Updating Attendance
+2026-04-19 [COMPLETED] Attendance
+2026-04-19 [COMPLETED] Sync - up with ops team
+2026-04-17 [COMPLETED] SEB checking for students
+2026-04-17 [COMPLETED] Follow up with Electrician
+2026-04-17 [COMPLETED] Follow up with Accounts team
+2026-04-17 [COMPLETED] Print out for Hostel permission letter
+2026-04-17 [COMPLETED] Assets Tracking
+2026-04-17 [COMPLETED] Sync - up with ops team
+2026-04-17 [COMPLETED] Attendance
+2026-04-17 [COMPLETED] Infrastructure
+2026-04-16 [COMPLETED] Infrastructure
+2026-04-16 [COMPLETED] Assets Tracking
+2026-04-16 [COMPLETED] Sync - up with ops team
+2026-04-16 [COMPLETED] Printout for cat 2 exam
+2026-04-16 [COMPLETED] CAT 3 Answer sheet
+2026-04-16 [COMPLETED] Follow up with Electrician
+2026-04-16 [COMPLETED] Attendance
+2026-04-16 [COMPLETED] Updating Attendance
+2026-04-15 [COMPLETED] Follow up with site manager
+2026-04-15 [COMPLETED] Assets Tracking
+2026-04-15 [COMPLETED] Sync - up
+2026-04-15 [COMPLETED] Follow up with kannan sir
+2026-04-15 [COMPLETED] Follow up with Accounts team
+2026-04-15 [COMPLETED] Attendance
+2026-04-15 [COMPLETED] Sync - up with ops team
+2026-04-15 [COMPLETED] Infrastructure
+2026-04-15 [COMPLETED] Updating Attendance
+2026-04-14 [COMPLETED] Follow up with Accounts team
+2026-04-14 [COMPLETED] Follow up with Accounts team
+2026-04-14 [COMPLETED] Infrastructure
+2026-04-14 [COMPLETED] Assets Tracking
+2026-04-14 [COMPLETED] Attendance
+2026-04-14 [COMPLETED] Follow up with airtel service team
+2026-04-12 [COMPLETED] Infrastructure
+2026-04-12 [COMPLETED] Updating Attendance
+2026-04-12 [COMPLETED] Assets Tracking
+2026-04-12 [COMPLETED] Attendance
+2026-04-12 [COMPLETED] Updating Goals of April to June
+2026-04-12 [COMPLETED] Follow up with Electrician
+2026-04-08 [COMPLETED] Updating goals
+2026-04-08 [COMPLETED] Infrastructure
+2026-04-08 [COMPLETED] Assets Tracking
+2026-04-08 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] Infrastructure
+2026-04-07 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] Updating Attendance
+2026-04-07 [COMPLETED] Assets Tracking
+2026-04-07 [COMPLETED] Infrastructure
+2026-04-06 [COMPLETED] Updating Attendance
+2026-04-06 [COMPLETED] Follow up with Electrician
+2026-04-06 [COMPLETED] Follow up with revathi mam
+2026-04-06 [COMPLETED] Attendance
+2026-04-05 [COMPLETED] Follow up with revathi mam
+2026-04-05 [COMPLETED] Infrastruture
+2026-04-05 [COMPLETED] Follow up with accounts team
+2026-04-05 [COMPLETED] Collecting Parcel
+2026-04-05 [COMPLETED] Attendance
+2026-04-01 [COMPLETED] Attendance
+2026-04-01 [COMPLETED] Assets Tracking
+2026-04-01 [COMPLETED] Follow up with Eletriction
+2026-04-01 [COMPLETED] Attendance
+2026-04-01 [COMPLETED] Follow up with Accounts team
+2026-04-01 [COMPLETED] Infrastructure
+2026-04-01 [COMPLETED] Create a Sheet
+2026-03-31 [COMPLETED] Overseeing Infrastructure

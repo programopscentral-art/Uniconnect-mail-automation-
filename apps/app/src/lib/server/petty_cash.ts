@@ -1,6 +1,6 @@
 import { db, createNotification, sendEmail, type PettyCashRequest, type PettyCashStatus } from '@uniconnect/shared';
 import { buildPettyCashEmail } from './petty_cash_email';
-import { PC_APPROVER_EMAILS } from './petty_cash_access';
+import { PC_APPROVER_EMAILS, PC_APPROVER_L1_EMAILS, PC_APPROVER_L2_EMAILS } from './petty_cash_access';
 
 /**
  * Petty-cash lifecycle notifications.
@@ -50,15 +50,27 @@ export async function notifyPettyCashUpdate(
 
     switch (toStatus) {
         case 'SUBMITTED': {
-            title = 'Petty cash request needs your approval 🔔';
-            body = `${actorName} submitted ${label}. Please approve, send back, or reject.`;
-            // Petty cash: Satish is the sole approver, so only he gets the request.
-            // Resolve to a real user record for the greeting + in-app notification.
+            title = 'Petty cash — Level 1 approval needed 🔔';
+            body = `${actorName} submitted ${label}. As Level-1 approver, please review the request and approve, send back, or reject. It then goes to Satish for the final budget check.`;
+            // Level 1 = Pravalika. Resolve to a real user record for greeting + in-app.
             recipients = (await db.query(
                 `SELECT id, email, name FROM users WHERE email = ANY($1) AND is_active = true`,
-                [PC_APPROVER_EMAILS],
+                [PC_APPROVER_L1_EMAILS],
             )).rows as Target[];
-            for (const e of PC_APPROVER_EMAILS) {
+            for (const e of PC_APPROVER_L1_EMAILS) {
+                if (!recipients.some((r) => r.email === e)) recipients.push({ id: '', email: e });
+            }
+            break;
+        }
+        case 'L1_APPROVED': {
+            title = 'Petty cash — final approval needed 🔔';
+            body = `${label} cleared Level-1 (${actorName}). Please check the budget and give final approval, send back, or reject. Money is disbursed only after your approval.`;
+            // Level 2 = Satish. Resolve to a real user record for greeting + in-app.
+            recipients = (await db.query(
+                `SELECT id, email, name FROM users WHERE email = ANY($1) AND is_active = true`,
+                [PC_APPROVER_L2_EMAILS],
+            )).rows as Target[];
+            for (const e of PC_APPROVER_L2_EMAILS) {
                 if (!recipients.some((r) => r.email === e)) recipients.push({ id: '', email: e });
             }
             break;

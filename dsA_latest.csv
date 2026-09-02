@@ -1,0 +1,25 @@
+University,no of working days/week,"No of periods/day
+(Exclude the breaks)","period length
+(Ex: 40mins to 50mins) ?",how many sections/batches per university,Is scheduling per section (parallel subjects) or one stream?,"Hard constraints — max daily load per faculty, rooms, any fixed/pinned slots?",Total No of Slots for semester,total no of buffer slots for semester,Start time and end time of university
+VGU,5,8,50,7,Parallel Subjects,NO,720,100,8:30 TO 4:20PM     Tentative
+NIU,6,6,60,4,Parallel Subjects,NO,,,9:30 Am to 4:30 PM
+Takshashila,6,7,55,5,Parallel Subjects,NO,,,9:30 TO 4:40
+AMET ,6,7,50,3,Parallel Subjects,NO,395,,8:30 TO 3:00PM
+Aurora,6,8,50,26,Parallel Subjects,"Daily load not more than 5
+talent enrichment Fixed on tuesday and wednesday
+last sessionThursday and Friday is for club Activity
+",,,9:20 to 4:40
+Annamacharya,6,7,50 mins,2 sections,Parallel Subjects,NO,630,,9.15 AM - 4.00 PM
+Yenepoya,6 and 5(On Every 3rd saturday),7 & 6(On every Fridays),55 mins - 60 mins,6 sections (2 batches),Parallel Subjects,NO,630,Yet to receive from university,9:00 AM - 4:45 PM
+S-vyasa,5,8,50mins,3,Parallel Subjects,NO,720,,9:00 AM to 4:40 PM
+ADYPU ,6,7,60,4,Parallel Subjects,NO,623,,8:30 to 4:30
+SGU ,6,,60,4,Parallel Subjects,"Daily load not more than 
+6",651,,9:00 am to 5:00 pm
+NSRIT,6,7,50,1,Parallel Subjects,NO,405.5,yet to recceive prod seq then we can kown how many buffer slots are there.,9:00AM to 3:40PM
+NRI,6,7,50,3,Parallel Subjects,NO,,,9:20 AM - 4:25 PM
+CIET/CITY,6,7,50,3,Parallel Subjects,NO,616,116,9:10 AM - 3:50 PM
+Cresent,5,7,50,3,Parallel Subjects,NO,,,9:00 AM - 4:10PM
+MRV,6,7,50,5,Parallel Subjects,NO,619,173,9:30AM to 4:00 PM
+CDU,6,8,50,20,Parallel Subjects,NO,676,275,8:30 AM to 4:00PM
+Chevella,6,7,60,3,Parallel Subjects,NO,948,,8:30 AM to 4:30PM
+KKH,,,,,,,,,

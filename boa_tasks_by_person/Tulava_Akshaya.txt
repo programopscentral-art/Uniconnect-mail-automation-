@@ -1,0 +1,121 @@
+BOA: Tulava Akshaya
+Total tasks: 118
+
+2026-05-27 [COMPLETED] Daily Tasks
+2026-05-25 [COMPLETED] Sent Fee Payment Announcements for AMET
+2026-05-25 [COMPLETED] Upload Instructor invoice
+2026-05-25 [COMPLETED] Fee Reminder Emails Sent
+2026-05-24 [COMPLETED] Collect Chevella Bootcamp Update from Sai Venkat
+2026-05-24 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-24 [COMPLETED] Upload Instructor invoice
+2026-05-24 [COMPLETED] Shared Click-to-Chat Message Sheets
+2026-05-24 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-24 [COMPLETED] Informed Universities to Update Faculty Attendance
+2026-05-24 [COMPLETED] Daily Tasks
+2026-05-19 [COMPLETED] Load Missing Practice Content in Campus Admin Portal
+2026-05-19 [COMPLETED] Upload Instructor invoice
+2026-05-19 [COMPLETED] Add Missing Content in Instructor Portal
+2026-05-17 [COMPLETED] Resolve Missing LLM Fine-Tuning Content in Instructor Portal
+2026-05-17 [COMPLETED] Daily Tasks
+2026-05-17 [COMPLETED] Schedule Interviews
+2026-05-17 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-17 [COMPLETED] Create Attendance Slot IDs for ADYPU University in Beta
+2026-05-17 [COMPLETED] Track Instructor Reimbursement Claim Approvals
+2026-05-17 [COMPLETED] KT on Sending Bulk Emails in UniConnect App
+2026-05-17 [COMPLETED] Instructor invoice upload
+2026-05-17 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-15 [COMPLETED] Book Bus Ticket for Backup Instructor to Vijayawada
+2026-05-15 [COMPLETED] Update Instructor Attendance and Remarks
+2026-05-15 [COMPLETED] Collect GRIT Exam Slots for All Universities
+2026-05-15 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-15 [COMPLETED] Inform Universities to Update Interview, Transcription, and Recording Details
+2026-05-15 [COMPLETED] Manually Send Frontend and DBMS Exam Invitation Links to Aurora Students in Topintech
+2026-05-15 [COMPLETED] Schedule Interviews for University Operations
+2026-05-14 [COMPLETED] Instructor invoice upload
+2026-05-14 [COMPLETED] Daily Tasks
+2026-05-14 [COMPLETED] Create DSA and DBMS Assessments for Crescent
+2026-05-14 [COMPLETED] Instructor invoice upload
+2026-05-13 [COMPLETED] Daily Tasks
+2026-05-13 [COMPLETED] Instructor Attendance
+2026-05-13 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-13 [COMPLETED] Instructor invoice upload
+2026-05-13 [COMPLETED] Collect One-Week Schedule for Crescent
+2026-05-12 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-11 [COMPLETED] Collect the Semester 3 dates for the respective universities.
+2026-05-11 [COMPLETED] Instructor invoice upload
+2026-05-11 [COMPLETED] Booking Accommodation for Instructor
+2026-05-11 [COMPLETED] End-to-End Bootcamp Management KT
+2026-05-11 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-11 [COMPLETED] Daily Tasks
+2026-05-10 [COMPLETED] Making SOPs
+2026-05-10 [COMPLETED] Instructors Invoices Upload
+2026-05-10 [COMPLETED] Extract Central Team UIDs and Collect Photos
+2026-05-10 [COMPLETED] Daily Tasks
+2026-05-10 [COMPLETED] Bootcamp Operations Management
+2026-05-10 [COMPLETED] Took KT on Invoice Raising in NXT Claim Dashboard
+2026-05-10 [COMPLETED] Track Invoice Details and Claim IDs
+2026-05-10 [COMPLETED] Collect GRIT Slots for All Universities (Next Two Weeks)
+2026-05-05 [COMPLETED] Making SOPs
+2026-05-05 [COMPLETED] Term 3 Fee Details Coordination
+2026-05-05 [COMPLETED] Daily Tasks
+2026-05-04 [COMPLETED] Bootcamp Operations Management
+2026-05-04 [COMPLETED] Instructor Attendance Coordination
+2026-05-04 [COMPLETED] Report Sheet Submission Coordination
+2026-05-04 [COMPLETED] Bootcamp Operations Management
+2026-05-04 [COMPLETED] Interview Slot Coordination with Universities
+2026-05-03 [COMPLETED] Monitor and address university issues.
+2026-05-03 [COMPLETED] Instructor Attendance Coordination
+2026-05-03 [COMPLETED] Daily Tasks
+2026-05-03 [COMPLETED] Inform the respective universities to fill in the attendance for the last GRIT exam.
+2026-04-29 [COMPLETED] Inform COS/PMs of the respective universities to add BOAs and PMAs to the relevant hiring teams group
+2026-04-29 [COMPLETED] GRIT Slots
+2026-04-29 [COMPLETED] Admission Process Document
+2026-04-29 [COMPLETED] Collect the last exam dates for Semester 2 for the respective universities.
+2026-04-29 [COMPLETED] Collect the data on available slots and completed slot counts in the Takshashila syllabus.
+2026-04-29 [COMPLETED] Daily Tasks
+2026-04-28 [COMPLETED] Daily Tasks
+2026-04-28 [COMPLETED] Collect  photos from the drive for January events across all universities
+2026-04-28 [COMPLETED] Collect the workshop dates for the respective universities
+2026-04-28 [COMPLETED] Inform the respective universities to provide documents outlining their admission process.
+2026-04-28 [COMPLETED] Collect the Semester 3 dates for the respective universities.
+2026-04-28 [COMPLETED] Attend the Generative AI training session.
+2026-04-28 [COMPLETED] Student Mobile Number Correction Across My NIAT App, and Parent App
+2026-04-27 [COMPLETED] KT on UID-Based Phone Number and Name Extraction
+2026-04-27 [COMPLETED] University Infrastructure and Facilities Data Collection
+2026-04-26 [COMPLETED] Updating attendance records for CDU.
+2026-04-26 [COMPLETED] Remove Face Recognition for Student in Crescent Learning Portal
+2026-04-26 [COMPLETED] Module Quiz Issue for Students in Crescent
+2026-04-26 [COMPLETED] Update Dashboard Every 30 Minutes for Fully Paid LMS Access
+2026-04-26 [COMPLETED] content loading for crescent
+2026-04-26 [COMPLETED] Update Student Email ID
+2026-04-26 [COMPLETED] Daily Tasks
+2026-04-21 [COMPLETED] Schedule checking
+2026-04-20 [COMPLETED] Preparing SOP Documents
+2026-04-19 [COMPLETED] checking the daily reports
+2026-04-19 [COMPLETED] Update Dashboard Every 30 Minutes for Fully Paid LMS Access
+2026-04-19 [COMPLETED] Prod sequence Status
+2026-04-19 [COMPLETED] Data Mapping with Finance and University Records
+2026-04-19 [COMPLETED] Schedule report checking
+2026-04-19 [COMPLETED] NIAT Daily report
+2026-04-19 [COMPLETED] Update Student Portal Access
+2026-04-17 [COMPLETED] Making SOPs
+2026-04-17 [COMPLETED] sending bulk mails
+2026-04-17 [COMPLETED] Daily Tasks
+2026-04-17 [COMPLETED] Data Mapping with Finance and University Records
+2026-04-09 [COMPLETED] Data Mapping with Finance and University Records
+2026-04-09 [COMPLETED] Update Dashboard Every 30 Minutes for Fully Paid LMS Access
+2026-04-09 [COMPLETED] Sync-up with Harishma on Fee Payments and Call Status
+2026-04-09 [COMPLETED] Sync up with Finance Team on Statements & Refund Updates
+2026-04-09 [COMPLETED] Coordinate with Universities for Refund Status Update
+2026-04-07 [COMPLETED] Schedule Making
+2026-04-05 [COMPLETED] Share Takshahila & AMET University IDs with Finance Team
+2026-04-05 [COMPLETED] Attend Gen AI Class
+2026-04-05 [COMPLETED] Update Dashboard Every 30 Minutes for Fully Paid LMS Access
+2026-04-05 [COMPLETED] Update Dashboard Every 30 Minutes for Fully Paid LMS Access
+2026-04-05 [COMPLETED] Follow-up on Pending University Payment Proofs
+2026-04-05 [COMPLETED] Sync-up with Finance Team on AMET Payment Data
+2026-04-05 [COMPLETED] Data Mapping with Finance and University Records
+2026-04-03 [COMPLETED] Data Mapping with Finance and University Records
+2026-04-03 [COMPLETED] Instructor Count for Semester 3 – AMET & Crescent
+2026-04-03 [COMPLETED] Direct Paid from University – Cross Check in Main Sheet
+2026-01-30 [COMPLETED] Hands on Topin Tech

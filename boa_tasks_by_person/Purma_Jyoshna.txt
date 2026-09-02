@@ -1,0 +1,154 @@
+BOA: Purma Jyoshna
+Total tasks: 151
+
+2026-05-17 [COMPLETED] Checking Schedules
+2026-05-17 [PENDING] CDU KT
+2026-05-17 [PENDING] Report Sheet
+2026-05-17 [COMPLETED] Bulk Mails
+2026-05-17 [COMPLETED] Responded to calls and messages
+2026-05-17 [COMPLETED] Interview scheduling
+2026-05-17 [COMPLETED] NIAT Daily report
+2026-05-17 [COMPLETED] Attendace On campus Sheet
+2026-05-15 [COMPLETED] Scheduling interviews
+2026-05-15 [COMPLETED] Walkin Drive
+2026-05-15 [COMPLETED] Shotlisted Resumes
+2026-05-15 [COMPLETED] NIAT Daily report
+2026-05-15 [COMPLETED] schedule daily report
+2026-05-15 [COMPLETED] Walkin Drive
+2026-05-15 [COMPLETED] Interviews
+2026-05-15 [COMPLETED] Checking Schedules
+2026-05-15 [COMPLETED] interview
+2026-05-15 [COMPLETED] Created Announcement For MRV
+2026-05-15 [COMPLETED] Mapped Walk_in Interviews
+2026-05-15 [COMPLETED] schedule daily report
+2026-05-15 [COMPLETED] Checking Schedules
+2026-05-14 [COMPLETED] KT ON BOOTCAMPUS
+2026-05-14 [COMPLETED] Grit Slots
+2026-05-14 [COMPLETED] Toastmaster
+2026-05-14 [COMPLETED] NIAT Daily report
+2026-05-14 [COMPLETED] Scheduling the interviews
+2026-04-29 [COMPLETED] Collected sem 2 last Exam dates.
+2026-04-29 [COMPLETED] taking clarity on saturday working or not from universities
+2026-04-29 [COMPLETED] Prepared Time Table
+2026-04-29 [COMPLETED] checking and asking to update schedule in campus admin portal, NIAT daily Report Sheet, Schedule daily report sheet, Report sheet
+2026-04-29 [COMPLETED] BOD, PMA Loops
+2026-04-29 [COMPLETED] Previous GRIT Attendances
+2026-04-29 [COMPLETED] Townhall
+2026-04-29 [COMPLETED] Grit Slots
+2026-04-29 [COMPLETED] Checking GRIT slot for upcoming EXAM for all Universities.
+2026-04-29 [COMPLETED] Contacted Chevella for Workshop
+2026-04-28 [COMPLETED] GRIT Appeal Request
+2026-04-28 [COMPLETED] Google Form
+2026-04-28 [IN_PROGRESS] NIAT Daily report
+2026-04-28 [COMPLETED] Photos from all events conducted in February have been collected from the drive.
+2026-04-28 [COMPLETED] sem 3 data
+2026-04-28 [COMPLETED] Offline Workshop
+2026-04-28 [COMPLETED] Content Loading Changes
+2026-04-28 [COMPLETED] schedule daily report
+2026-04-28 [COMPLETED] Admission Process Document of 2026-2027
+2026-04-28 [COMPLETED] Created Assessments in Topin Tech
+2026-04-28 [COMPLETED] Checking Schedules
+2026-04-27 [COMPLETED] schedule daily report
+2026-04-27 [COMPLETED] Uni-Wise<>Facilities and Infra Pending report
+2026-04-27 [COMPLETED] GRIT Appeal Requests sheet.
+2026-04-27 [COMPLETED] GRIT Access Requests sheet
+2026-04-27 [COMPLETED] Checking Schedules
+2026-04-27 [COMPLETED] Prod update and Session Tracker Update
+2026-04-27 [COMPLETED] Document of Interview
+2026-04-27 [COMPLETED] NIAT Daily report
+2026-04-27 [COMPLETED] Term 3 fee reminder details
+2026-04-27 [COMPLETED] schedule daily report
+2026-04-26 [COMPLETED] Updated CDU attendance Records
+2026-04-26 [COMPLETED] Report Sheet
+2026-04-26 [COMPLETED] NIAT Daily report
+2026-04-26 [COMPLETED] Checking Schedules
+2026-04-26 [COMPLETED] Created Google meet
+2026-04-26 [COMPLETED] Updated Prod sheet
+2026-04-26 [COMPLETED] schedule daily report
+2026-04-26 [COMPLETED] Checking Prod sheet
+2026-04-26 [COMPLETED] Content Loading
+2026-04-26 [COMPLETED] IDE issues
+2026-04-23 [COMPLETED] Checking CDU ppt issues
+2026-04-19 [COMPLETED] NIAT Daily report
+2026-04-19 [COMPLETED] schedule daily report
+2026-04-19 [COMPLETED] Preparing SOP Document
+2026-04-19 [COMPLETED] Face Recognition
+2026-04-19 [COMPLETED] Ticket Raising
+2026-04-19 [COMPLETED] GRIT Issues
+2026-04-19 [COMPLETED] Sending Bulk Mails
+2026-04-19 [COMPLETED] Checking Schedules
+2026-04-17 [COMPLETED] Content Loading
+2026-04-17 [COMPLETED] NIAT Daily report
+2026-04-17 [COMPLETED] Report Sheet
+2026-04-17 [COMPLETED] Prepared SOP documents
+2026-04-17 [COMPLETED] Checking Schedules
+2026-04-08 [COMPLETED] 2nd Masterclass certificate
+2026-04-08 [COMPLETED] Checking Schedules
+2026-04-08 [COMPLETED] NIAT Daily report
+2026-04-08 [COMPLETED] NIAT Daily report
+2026-04-08 [COMPLETED] Checking Schedules
+2026-04-08 [COMPLETED] Content Issues
+2026-04-08 [COMPLETED] Report Sheet
+2026-04-08 [COMPLETED] Instructor Work load
+2026-04-08 [COMPLETED] schedule daily report
+2026-04-07 [COMPLETED] Checking Schedules
+2026-04-07 [COMPLETED] NIAT Daily report
+2026-04-07 [COMPLETED] Attendance Issues
+2026-04-07 [COMPLETED] Checking CDU ClassRoom quiz issues
+2026-04-07 [COMPLETED] Face Recognition
+2026-04-07 [COMPLETED] Time Table For Sem 3
+2026-04-07 [COMPLETED] Prepare Time Table
+2026-04-07 [COMPLETED] Report Sheet
+2026-04-07 [COMPLETED] schedule daily report
+2026-04-06 [COMPLETED] Attedance issues
+2026-04-06 [COMPLETED] CCTV Details.
+2026-04-06 [COMPLETED] Checking Schedules
+2026-04-06 [COMPLETED] Face Recognition
+2026-04-06 [COMPLETED] Caluculated instructed Count and workload
+2026-04-06 [COMPLETED] changing course version
+2026-04-06 [COMPLETED] Sem 1 session Tracker sheet
+2026-04-06 [COMPLETED] Updating report Sheet
+2026-03-29 [COMPLETED] schedule daily report
+2026-03-29 [COMPLETED] Checking Schedules
+2026-03-29 [COMPLETED] CONSOLIDATED_GRIT_CONTEST_REPORTS
+2026-03-29 [COMPLETED] Attendances management system.
+2026-03-29 [COMPLETED] CONSOLIDATED_GRIT_CONTEST_REPORTS
+2026-03-29 [COMPLETED] NIAT Daily report
+2026-03-29 [COMPLETED] SEM 2 Assessments Calendar
+2026-03-29 [COMPLETED] GRIT_CONTEST_Issues
+2026-03-27 [COMPLETED] NIAT Daily report
+2026-03-27 [COMPLETED] Checking Schedules
+2026-03-27 [COMPLETED] Shared GRIT Attendances
+2026-03-27 [COMPLETED] Coordinated on GRIT issues which the concerned person
+2026-03-27 [COMPLETED] Changing Of Universities to instructors
+2026-03-27 [COMPLETED] Sending Bulk Mails
+2026-03-27 [COMPLETED] Content Loading
+2026-03-27 [COMPLETED] Worked On CDU Classroom quiz issue
+2026-03-26 [COMPLETED] Rechecking the CDU Payments
+2026-03-26 [COMPLETED] GRIT Issues
+2026-03-26 [COMPLETED] Sending Buld Mails to Students
+2026-03-26 [COMPLETED] Checking Schedule in campus admin portal
+2026-03-26 [COMPLETED] Schedule daily report
+2026-03-26 [COMPLETED] Giving Access to DBMS MongoDB course
+2026-03-26 [COMPLETED] Checking NIAT daily Report
+2026-03-26 [COMPLETED] Event Calendar of April
+2026-03-26 [COMPLETED] GRIT Attendances
+2026-03-26 [COMPLETED] Sending Bulk Mails
+2026-03-26 [COMPLETED] Checking Schedules
+2026-03-26 [COMPLETED] Collecting GRIT Data from CDU and Chevella
+2026-03-26 [COMPLETED] Schedule daily report
+2026-03-26 [COMPLETED] Chevella Student Attendence Issue
+2026-03-26 [COMPLETED] Update NIAT Daily Report
+2026-03-26 [COMPLETED] CDU DROPOUT CASES
+2026-03-25 [COMPLETED] In MRV they Got traffic Issue For Classroom  Quiz
+2026-03-24 [COMPLETED] CDU Syllabus Completion Percentage
+2026-03-24 [COMPLETED] Checking Schedules
+2026-03-24 [COMPLETED] Collected information of Last instructional day for sem-2
+2026-03-24 [COMPLETED] verifying the Parent app and Parent Whatsapp messages sent or not.
+2026-03-24 [COMPLETED] Asking universities to update the schedule daily report
+2026-03-24 [COMPLETED] Helping KKh to load content
+2026-03-24 [COMPLETED] Sending Bulk Mails
+2026-03-24 [COMPLETED] NIAT Daily report
+2026-03-24 [COMPLETED] Providing the CDU content completion
+2026-03-24 [COMPLETED] Mongo DB Content is lock for CDU students and Instructors
+2026-01-30 [COMPLETED] Hands on Topin Tech

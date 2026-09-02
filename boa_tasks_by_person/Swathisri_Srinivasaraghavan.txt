@@ -1,0 +1,242 @@
+BOA: Swathisri Srinivasaraghavan
+Total tasks: 239
+
+2026-05-15 [COMPLETED] Attendance slots
+2026-05-15 [COMPLETED] Ops team syncup
+2026-05-15 [COMPLETED] Issue Escalation
+2026-05-15 [COMPLETED] Scheduling
+2026-05-15 [COMPLETED] Timetable Creation
+2026-05-15 [COMPLETED] Fee Payment
+2026-05-15 [COMPLETED] Practicals
+2026-05-15 [COMPLETED] Instructor Attendance
+2026-05-15 [COMPLETED] Interview
+2026-05-15 [COMPLETED] Session report sheet
+2026-05-15 [COMPLETED] Scheduling Daily report
+2026-05-15 [COMPLETED] Assignments
+2026-05-15 [COMPLETED] Assignment segregation
+2026-05-14 [COMPLETED] Hiring calls
+2026-05-14 [COMPLETED] Session report sheet
+2026-05-14 [COMPLETED] Scheduling Daily report
+2026-05-14 [COMPLETED] Scheduling
+2026-05-14 [COMPLETED] Attendance slots
+2026-05-14 [COMPLETED] Interviews
+2026-05-14 [COMPLETED] Instructor attendance
+2026-05-14 [COMPLETED] Timetable Creation
+2026-05-14 [COMPLETED] Practicals
+2026-05-14 [COMPLETED] Meeting links
+2026-05-13 [COMPLETED] Interview
+2026-05-13 [COMPLETED] Attendance slots
+2026-05-13 [COMPLETED] Timetable Creation
+2026-05-12 [COMPLETED] Hiring Calls
+2026-05-12 [COMPLETED] Online class
+2026-05-12 [COMPLETED] Practicals
+2026-05-12 [COMPLETED] Ops team syncup
+2026-05-12 [COMPLETED] Scheduling
+2026-05-12 [COMPLETED] Meeting links
+2026-05-12 [COMPLETED] CAT examination
+2026-05-12 [COMPLETED] Session report sheet
+2026-05-12 [COMPLETED] Scheduling Daily report
+2026-05-12 [COMPLETED] Scheduling
+2026-05-12 [COMPLETED] CAT examination
+2026-05-12 [COMPLETED] Session report sheet
+2026-05-12 [COMPLETED] Scheduling Daily report
+2026-05-11 [COMPLETED] Hiring Calls
+2026-05-11 [COMPLETED] Session report sheet
+2026-05-11 [COMPLETED] CAT examination
+2026-05-11 [COMPLETED] Scheduling
+2026-05-11 [COMPLETED] Interview
+2026-05-11 [COMPLETED] Student engagement
+2026-05-11 [COMPLETED] Scheduling Daily report
+2026-05-11 [COMPLETED] Leads generation
+2026-05-11 [COMPLETED] Practicals
+2026-05-11 [COMPLETED] Meeting links
+2026-05-06 [COMPLETED] TN ops syncup
+2026-05-06 [COMPLETED] Timetable Creation
+2026-05-06 [COMPLETED] Lead Generation
+2026-05-06 [COMPLETED] Session report sheet
+2026-05-06 [COMPLETED] Scheduling
+2026-05-06 [COMPLETED] Scheduling Daily report
+2026-05-06 [COMPLETED] Attendance slots
+2026-05-05 [COMPLETED] Attendance slots
+2026-05-05 [COMPLETED] Practicals
+2026-05-05 [COMPLETED] GRIT exam
+2026-05-05 [COMPLETED] Session report sheet
+2026-05-05 [COMPLETED] Timetable Creation
+2026-05-05 [COMPLETED] Scheduling
+2026-05-05 [COMPLETED] Scheduling Daily report
+2026-05-04 [COMPLETED] LMS access
+2026-05-04 [COMPLETED] sem fee payment
+2026-05-03 [COMPLETED] Timetable Creation
+2026-05-03 [COMPLETED] Online class
+2026-05-03 [COMPLETED] Scheduling Daily report
+2026-05-03 [COMPLETED] Scheduling
+2026-05-03 [COMPLETED] Click to share
+2026-05-03 [COMPLETED] Session report sheet
+2026-05-03 [COMPLETED] Attendance slots
+2026-04-29 [COMPLETED] Practicals
+2026-04-29 [COMPLETED] Announcements
+2026-04-29 [COMPLETED] Issue escalation
+2026-04-29 [COMPLETED] Session report sheet
+2026-04-29 [COMPLETED] Timetable Creation
+2026-04-29 [COMPLETED] Skill Assessment
+2026-04-29 [COMPLETED] Scheduling Daily report
+2026-04-29 [COMPLETED] Syllabus updation
+2026-04-29 [COMPLETED] Communication Tracker
+2026-04-29 [COMPLETED] Scheduling
+2026-04-29 [COMPLETED] Admission Details
+2026-04-29 [COMPLETED] Admission documentation
+2026-04-29 [COMPLETED] Report generation
+2026-04-28 [COMPLETED] Scheduling
+2026-04-28 [COMPLETED] Seating arrangement
+2026-04-28 [COMPLETED] Timetable Creation
+2026-04-28 [COMPLETED] Session report sheet
+2026-04-28 [COMPLETED] Scheduling Daily report
+2026-04-28 [COMPLETED] GRIT examination
+2026-04-28 [COMPLETED] Practicals
+2026-04-28 [COMPLETED] Attendance slots
+2026-04-28 [COMPLETED] Communication Tracker
+2026-04-28 [COMPLETED] Announcements
+2026-04-28 [COMPLETED] SSO Links
+2026-04-28 [COMPLETED] Ad-hoc Sheet updation
+2026-04-28 [COMPLETED] Fee payment status
+2026-04-28 [COMPLETED] Announcements
+2026-04-28 [COMPLETED] Communication tracker
+2026-04-28 [COMPLETED] Marksheet verification
+2026-04-28 [COMPLETED] Attendance slots
+2026-04-28 [COMPLETED] Scheduling
+2026-04-28 [COMPLETED] Timetable Creation
+2026-04-28 [COMPLETED] Certificate Generation
+2026-04-28 [COMPLETED] University Report
+2026-04-28 [COMPLETED] Scheduling Daily report
+2026-04-27 [COMPLETED] Scheduling
+2026-04-27 [COMPLETED] Marksheet verification
+2026-04-27 [COMPLETED] Seating Arrangement
+2026-04-27 [COMPLETED] Sem fee
+2026-04-27 [COMPLETED] Grit examination
+2026-04-27 [COMPLETED] Scheduling Daily report
+2026-04-27 [COMPLETED] Communication tracker
+2026-04-27 [COMPLETED] Certificate generation
+2026-04-27 [COMPLETED] CAT 3 examination
+2026-04-27 [COMPLETED] Attendance slots
+2026-04-27 [COMPLETED] University Report
+2026-04-27 [COMPLETED] Timetable Creation
+2026-04-26 [COMPLETED] Scheduling
+2026-04-26 [COMPLETED] GRIT examination
+2026-04-26 [COMPLETED] Attendance slots
+2026-04-26 [COMPLETED] Announcements
+2026-04-26 [COMPLETED] Timetable Creation
+2026-04-26 [COMPLETED] Issue escalation
+2026-04-26 [COMPLETED] Seating arrangement
+2026-04-26 [COMPLETED] Communication Tracker
+2026-04-24 [COMPLETED] University report
+2026-04-24 [COMPLETED] Scheduling Daily report
+2026-04-23 [COMPLETED] Issue Escalation
+2026-04-23 [COMPLETED] GRIT examination
+2026-04-23 [COMPLETED] University report
+2026-04-23 [COMPLETED] Scheduling Daily report
+2026-04-23 [COMPLETED] Communication tracker
+2026-04-23 [COMPLETED] Seating
+2026-04-23 [COMPLETED] Timetable Creation
+2026-04-23 [COMPLETED] Scheduling
+2026-04-23 [COMPLETED] Attendance slots
+2026-04-21 [COMPLETED] Scheduling
+2026-04-21 [COMPLETED] CAT examination
+2026-04-21 [COMPLETED] Timetable Creation
+2026-04-21 [COMPLETED] Generating Links
+2026-04-21 [COMPLETED] Attendance slots
+2026-04-21 [COMPLETED] University report
+2026-04-21 [COMPLETED] Invigilation
+2026-04-21 [COMPLETED] Scheduling Daily report
+2026-04-21 [COMPLETED] Issue escalation
+2026-04-20 [COMPLETED] Attendance
+2026-04-20 [COMPLETED] sem fee payment
+2026-04-20 [COMPLETED] Seating arrangement
+2026-04-20 [COMPLETED] Announcement
+2026-04-20 [COMPLETED] Issue Escalation
+2026-04-20 [COMPLETED] Communication Tracker
+2026-04-20 [COMPLETED] University Report
+2026-04-20 [COMPLETED] Scheduling Daily report
+2026-04-20 [COMPLETED] SEB trial test
+2026-04-20 [COMPLETED] CAT examination
+2026-04-19 [COMPLETED] CAT material preparation
+2026-04-19 [COMPLETED] Scheduling Daily report
+2026-04-19 [COMPLETED] University Report
+2026-04-19 [COMPLETED] Scheduling
+2026-04-19 [COMPLETED] CAT examination
+2026-04-19 [COMPLETED] Ops team syncup
+2026-04-19 [COMPLETED] CAT 3 Syllabus
+2026-04-19 [COMPLETED] Sem fee payment
+2026-04-19 [COMPLETED] LMS access
+2026-04-17 [COMPLETED] Second sem Fee payment
+2026-04-17 [COMPLETED] LMS access
+2026-04-17 [COMPLETED] Scheduling Daily report
+2026-04-17 [COMPLETED] SEB trial
+2026-04-17 [COMPLETED] University report
+2026-04-17 [COMPLETED] Click and shares
+2026-04-17 [COMPLETED] Top 50 students
+2026-04-17 [COMPLETED] Ops team syncup
+2026-04-17 [COMPLETED] POC sheet
+2026-04-15 [COMPLETED] Timetable Creation
+2026-04-15 [COMPLETED] Sif Number
+2026-04-15 [COMPLETED] University Report
+2026-04-15 [COMPLETED] Result Report
+2026-04-15 [COMPLETED] Mail ID Updation
+2026-04-15 [COMPLETED] SEB trial
+2026-04-15 [COMPLETED] Attendance slots
+2026-04-15 [COMPLETED] Scheduling Daily report
+2026-04-15 [COMPLETED] Attendance
+2026-04-15 [COMPLETED] Scheduling
+2026-04-14 [COMPLETED] Scheduling Daily report
+2026-04-14 [COMPLETED] Sem fee payment
+2026-04-14 [COMPLETED] Ops team syncup
+2026-04-14 [COMPLETED] University report
+2026-04-14 [COMPLETED] Timetable Creation
+2026-04-14 [COMPLETED] Issue Escalation
+2026-04-14 [COMPLETED] Re-evaluation
+2026-04-14 [COMPLETED] Scheduling
+2026-04-12 [COMPLETED] Scheduling Daily report
+2026-04-12 [COMPLETED] Issue Escalation
+2026-04-12 [COMPLETED] University Report
+2026-04-12 [COMPLETED] takshashila syncup
+2026-04-12 [COMPLETED] Ops team syncup
+2026-04-12 [COMPLETED] Sem fee payment
+2026-04-12 [COMPLETED] LMS Access
+2026-04-12 [COMPLETED] Paper arrangement
+2026-04-10 [COMPLETED] Report
+2026-04-10 [COMPLETED] Scheduling
+2026-04-10 [COMPLETED] Student list
+2026-04-10 [COMPLETED] Scheduling Daily report
+2026-04-10 [COMPLETED] Attendance slots
+2026-04-10 [COMPLETED] Poster Generation
+2026-04-10 [COMPLETED] Session report sheet
+2026-04-10 [COMPLETED] Click and share
+2026-04-10 [COMPLETED] Timetable Creation
+2026-04-09 [COMPLETED] Report updation
+2026-04-09 [COMPLETED] Scheduling Daily report
+2026-04-09 [COMPLETED] Fee payment
+2026-04-09 [COMPLETED] KT on uniconnect
+2026-04-09 [COMPLETED] Students result summary
+2026-04-09 [COMPLETED] Scheduling Daily report
+2026-04-09 [COMPLETED] LMS access
+2026-04-08 [COMPLETED] Ops team syncup
+2026-04-08 [COMPLETED] Goals Updation
+2026-04-08 [COMPLETED] Session report sheet
+2026-04-07 [COMPLETED] Timetable Creation
+2026-04-07 [COMPLETED] Paper arrangement
+2026-04-07 [COMPLETED] Scheduling
+2026-04-07 [COMPLETED] Ops team syncup
+2026-04-07 [COMPLETED] Attendance slots
+2026-04-07 [COMPLETED] Attendance
+2026-04-07 [COMPLETED] Scheduling
+2026-04-02 [COMPLETED] Scheduling
+2026-04-02 [COMPLETED] Face recognition sheet
+2026-04-02 [COMPLETED] Online class
+2026-04-02 [COMPLETED] Sem fee payment
+2026-04-02 [COMPLETED] Almanac
+2026-04-01 [COMPLETED] Attendance slots
+2026-04-01 [COMPLETED] Scheduling
+2026-04-01 [COMPLETED] Skill Assessment
+2026-04-01 [COMPLETED] Syllabus discussion
+2026-04-01 [COMPLETED] Self Rating
+2026-04-01 [COMPLETED] takshashila syncup
+2026-04-01 [COMPLETED] CAT examination

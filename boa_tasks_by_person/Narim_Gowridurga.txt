@@ -1,0 +1,70 @@
+BOA: Narim Gowridurga 
+Total tasks: 67
+
+2026-06-07 [PENDING] Student academic progress NSRIT
+2026-05-04 [COMPLETED] Schedule
+2026-05-04 [COMPLETED] ID  card issuing
+2026-05-01 [PENDING] Poster Generation
+2026-05-01 [COMPLETED] Supply Fee
+2026-05-01 [COMPLETED] Click to Send
+2026-05-01 [COMPLETED] Scheduling
+2026-04-26 [PENDING] SKILL ASSESSMENT -03 review
+2026-04-26 [COMPLETED] Updating of May academic and event calendar in uniconnect APP
+2026-04-24 [PENDING] ADHOC - SKILL ASSESSMENT -3
+2026-04-24 [PENDING] SKILL ASSESSMENT -03 Conduction and supervision
+2026-04-22 [COMPLETED] Prepare GRIT seating plan for the entire week
+2026-04-22 [COMPLETED] Click to Send
+2026-04-22 [COMPLETED] GRIT
+2026-04-22 [COMPLETED] Academic adherence
+2026-04-21 [COMPLETED] May Academic and Event calendar preparation
+2026-04-21 [COMPLETED] GRIT
+2026-04-21 [COMPLETED] Classroom announcements
+2026-04-20 [COMPLETED] GRIT- April
+2026-04-19 [COMPLETED] Regular everyday sync-up with team
+2026-04-19 [COMPLETED] Click to Send
+2026-04-19 [COMPLETED] APAAR ID creation
+2026-04-16 [COMPLETED] SEB
+2026-04-16 [COMPLETED] GRIT
+2026-04-16 [COMPLETED] Skill Assessment
+2026-04-16 [COMPLETED] Absentee Message
+2026-04-16 [COMPLETED] AI Agents 201
+2026-04-15 [COMPLETED] Schedule
+2026-04-15 [COMPLETED] Communication_Query_Tracker
+2026-04-15 [COMPLETED] SEB mock trial test
+2026-04-15 [COMPLETED] Lab 5.0 equipment recheck
+2026-04-15 [COMPLETED] Updates
+2026-04-15 [COMPLETED] Absent Message
+2026-04-15 [COMPLETED] Data
+2026-04-14 [COMPLETED] University Fee
+2026-04-14 [COMPLETED] Student App
+2026-04-14 [COMPLETED] Daily_Report
+2026-04-14 [COMPLETED] Schedule
+2026-04-14 [COMPLETED] Communication_Query_Tracker
+2026-04-14 [COMPLETED] Admin Panel
+2026-04-14 [COMPLETED] Report
+2026-04-14 [COMPLETED] Click to Send
+2026-04-13 [COMPLETED] Student App
+2026-04-12 [COMPLETED] Communication_Query_Tracker
+2026-04-12 [COMPLETED] Click to Send
+2026-04-12 [COMPLETED] Syllabus completion adherence
+2026-04-12 [COMPLETED] Weekly Sync-up over the upcoming complete week
+2026-04-12 [COMPLETED] Daily_Report
+2026-04-10 [COMPLETED] Certificate
+2026-04-10 [COMPLETED] Schedule
+2026-04-09 [COMPLETED] 5.0 Innovation Sprint
+2026-04-09 [COMPLETED] Daily_Report
+2026-04-09 [COMPLETED] Click to Send
+2026-04-09 [COMPLETED] Communication_Query_Tracker
+2026-04-08 [COMPLETED] Schedule
+2026-04-08 [COMPLETED] Communication
+2026-04-08 [COMPLETED] Click to Send
+2026-04-08 [COMPLETED] Student App
+2026-04-07 [COMPLETED] Click to Send
+2026-04-07 [COMPLETED] Schedule
+2026-04-07 [COMPLETED] NIAT App
+2026-04-07 [PENDING] Stand up with success coaches and instructors
+2026-04-07 [COMPLETED] Learning Portal Issue
+2026-04-07 [COMPLETED] Student App
+2026-03-31 [PENDING] Syllabus completion adherence
+2026-03-31 [COMPLETED] GRIT Roaster preparation
+2026-03-30 [COMPLETED] Skill assessment -2 synopsis

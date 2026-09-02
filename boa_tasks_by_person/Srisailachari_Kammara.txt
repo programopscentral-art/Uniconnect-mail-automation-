@@ -1,0 +1,747 @@
+BOA: Srisailachari Kammara
+Total tasks: 744
+
+2026-05-20 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-20 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-20 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-20 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-20 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-20 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-20 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-20 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-20 [COMPLETED] Neuroscience Kits Collection
+2026-05-20 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-20 [COMPLETED] Subject-wise Attendance Update Across Sections	
+2026-05-20 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-20 [COMPLETED] Morning Session Attendance Update	
+2026-05-20 [COMPLETED] Skill Assessment - 05 Exam Operations	
+2026-05-20 [COMPLETED] Interview Completion and Feedback Documentation	
+2026-05-20 [COMPLETED] Daily Report Sheet Update	
+2026-05-20 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-20 [COMPLETED] Morning Session Attendance Update	
+2026-05-20 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-20 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-20 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-20 [COMPLETED] Instructor Sync-Up on University Rules and CoS Protocols
+2026-05-20 [COMPLETED] Student Feeling Unwell – University POC Informed and Sick Room Opened	
+2026-05-20 [COMPLETED] Interview Completion and Feedback Documentation	
+2026-05-20 [COMPLETED] Morning Session Attendance Update	
+2026-05-20 [COMPLETED] Subject-wise Attendance Update Across Sections	
+2026-05-20 [COMPLETED] Bootcamp Setup Closure and Organization	
+2026-05-20 [COMPLETED] Daily Report Sheet Update	
+2026-05-20 [COMPLETED] Laptop Security Management	
+2026-05-20 [COMPLETED] Daily Report Sheet Update	
+2026-05-20 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-20 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-20 [COMPLETED] Interview Completion and Feedback Documentation	
+2026-05-20 [COMPLETED] Subject-wise Attendance Marking Using Face Recognition Data	
+2026-05-20 [COMPLETED] Bootcamp Day 3 Execution	
+2026-05-20 [COMPLETED] Laptop Inventory Verification and Relocation	
+2026-05-20 [COMPLETED] Skill Assessment Instructor Sync up	
+2026-05-20 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-20 [COMPLETED] Classroom Arrangement for Bootcamp Day 3	
+2026-05-20 [COMPLETED] Interview Completion and Feedback Documentation	
+2026-05-20 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-20 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-20 [COMPLETED] Weekly Schedule Communication with Instructors	
+2026-05-16 [COMPLETED] IoT Kit Distribution and Classroom Setup	
+2026-05-16 [COMPLETED] Weekly Schedule Creation	
+2026-05-16 [COMPLETED] Interview Completion and Feedback Documentation	
+2026-05-16 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-16 [COMPLETED] Uniconnect Task Updates (May 8 – May 15)	
+2026-05-16 [COMPLETED] Updated the Staff Attendance Sheet
+2026-05-16 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-16 [COMPLETED] Schedule Review and Updates with CoS	
+2026-05-16 [COMPLETED] Weekly Schedule Topic Planning	
+2026-05-16 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-16 [COMPLETED] Daily Report Sheet Update	
+2026-05-15 [COMPLETED] NIAT Attendance Verification and Update	
+2026-05-15 [COMPLETED] Laptop Setup and Classroom Arrangement	
+2026-05-15 [COMPLETED] Laptop Preparation and Asset Tagging	
+2026-05-15 [COMPLETED] Concern Resolution as per CoS Instructions	
+2026-05-15 [COMPLETED] Procurement of Bootcamp Materials	
+2026-05-15 [COMPLETED] Transportation Coordination for Bootcamp Students
+2026-05-15 [COMPLETED] Student Guidance and Coordination for Bootcamp	
+2026-05-15 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-15 [COMPLETED] Next Week Schedule Planning & Prod Sequence Sharing	
+2026-05-15 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-15 [COMPLETED] Candidate Interviews and Remarks Update	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-05-15 [COMPLETED] Daily Report Sheet Update	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-15 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-15 [COMPLETED] Daily Report Sheet Update	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] Comp Off Planning Communication	
+2026-05-15 [COMPLETED] Skill Assessment Syllabus Sharing	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] Student Data Sharing with Central Team	
+2026-05-15 [COMPLETED] NIAT Attendance Verification and Update	
+2026-05-15 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] NIAT Attendance Verification and Update	
+2026-05-15 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-15 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-15 [COMPLETED] Weekly Schedule Communication with Instructors	
+2026-05-15 [COMPLETED] Weekly Schedule Finalization with CoS Approval	
+2026-05-15 [COMPLETED] Bootcamp Essentials Secured	
+2026-05-15 [COMPLETED] GRIT Exam Execution	
+2026-05-15 [COMPLETED] Schedule Rework Based on CoS Inputs	
+2026-05-15 [COMPLETED] Daily Report Sheet Update	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-05-15 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-15 [COMPLETED] Auditorium Visit Coordination	
+2026-05-15 [COMPLETED] Bootcamp Day 1 Execution Oversight	
+2026-05-15 [COMPLETED] Bus Driver Briefing and Route Coordination	
+2026-05-15 [COMPLETED] Schedule Adjustment for the Day	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-15 [COMPLETED] Beta Portal Login Click n Share Creation and Handover	
+2026-05-15 [COMPLETED] NIAT Attendance Verification and Update	
+2026-05-15 [COMPLETED] Afternoon Session Attendance Update Using Face Recognition
+2026-05-15 [COMPLETED] Morning Session Attendance Update Using Face Recognition	
+2026-05-15 [COMPLETED] Schedule Update in Campus Admin Portal
+2026-05-15 [COMPLETED] Afternoon Session Attendance Update Using Face Recognition
+2026-05-15 [COMPLETED] Morning Session Attendance Update Using Face Recognition	
+2026-05-15 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-15 [COMPLETED] Weekly Topic Planning Aligned with Schedule	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] Subject-wise Attendance Sheet Validation and Formula Update
+2026-05-15 [COMPLETED] Weekly Schedule Creation	
+2026-05-15 [COMPLETED] Daily Report Sheet Update	
+2026-05-15 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-05-15 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-15 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-15 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-06 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-06 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-06 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-06 [COMPLETED] Coordination for Leadership Podcast at S-Vyasa	
+2026-05-06 [COMPLETED] Ticket Raised for Web Development 2 Quiz Issues	
+2026-05-06 [COMPLETED] Face Recognition Update Shared with CoS	
+2026-05-06 [COMPLETED] 3rd Floor Work Status Check and Update	
+2026-05-06 [COMPLETED] KT Session on NIAT Face Recognition with CoS Approval	
+2026-05-06 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-06 [COMPLETED] Daily Report Sheet Update	
+2026-05-06 [COMPLETED] Morning Session Attendance Upload – NIAT Face Recognition	
+2026-05-06 [COMPLETED] Student Image Capture for NIAT Face Recognition	
+2026-05-06 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-06 [COMPLETED] Attendance Upload – NIAT Face Recognition	
+2026-05-06 [COMPLETED] Attendance Marking for All Sections
+2026-05-06 [COMPLETED] Coordination Discussion with B2B Team	
+2026-05-06 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-05 [COMPLETED] Shared Internal Assessment 2 Portions	
+2026-05-05 [COMPLETED] Sync-Up with CoS	
+2026-05-05 [COMPLETED] Reviewed Interview Guide	
+2026-05-05 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-05 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-05 [COMPLETED] Updated Interview Remarks in Sheet	
+2026-05-05 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-05 [COMPLETED] Conduct Scheduled Interviews	
+2026-05-05 [COMPLETED] Daily Report Sheet Update	
+2026-05-05 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-05 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-05 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-05 [COMPLETED] Student Data Upload 	
+2026-05-05 [COMPLETED] Attendance Marking for All Sections	
+2026-05-05 [COMPLETED] Meeting on Student Referrals to NIAT	
+2026-05-04 [COMPLETED] KT MOM Documentation & Sharing with CoS	
+2026-05-04 [COMPLETED] Prod Sequence Validation & Syllabus Completion Update	
+2026-05-04 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-04 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-04 [COMPLETED] Student Data Upload – Face Recognition (All 3 Sections)	
+2026-05-04 [COMPLETED] NIAT Attendance – Face Recognition | KT from Central Team	
+2026-05-04 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-04 [COMPLETED] Seminar Hall & Media Room Booking Cancellation
+2026-05-04 [COMPLETED] Attendance_OnCampus Sheet Update	
+2026-05-04 [COMPLETED] First Floor Monitoring and Rounds	
+2026-05-04 [COMPLETED] Daily Report Sheet Update	
+2026-05-04 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-03 [COMPLETED] Created Section-wise Attendance Slots in Admin Panel	
+2026-05-03 [COMPLETED] Created Attendance Slots for May in Admin Panel	
+2026-05-03 [COMPLETED] Updated Holidays and Skill Assessment Dates in Admin Panel	
+2026-05-03 [COMPLETED] Updated Subject-wise Topics for Upcoming Week Schedule	
+2026-05-03 [COMPLETED] Daily Report Sheet Update	
+2026-05-03 [COMPLETED] Admission Process Document Review with CoS	
+2026-05-03 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-03 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-03 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-03 [COMPLETED] Coordination with Deputy Registrar for CCTV Footage and Sharing with CoS	
+2026-05-03 [COMPLETED] Discussion with Mathematics Instructor on Updated University Timings	
+2026-05-03 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-05-03 [COMPLETED] Daily Report Sheet Update	
+2026-05-03 [COMPLETED] Daily Report Sheet Update	
+2026-05-03 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-05-03 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-03 [COMPLETED] Discussion with Admission Counsellor on University Registration Updates	
+2026-05-03 [COMPLETED] Coordination with University Admission Head on Upcoming Admission Process	
+2026-05-03 [COMPLETED] Updated Attendance Tracker for Multiple Sessions	
+2026-05-03 [COMPLETED] Updated Admission Process Document as per CoS Inputs	
+2026-05-03 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-05-03 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-03 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-05-03 [COMPLETED] Next Week Schedule Created and Shared	
+2026-05-03 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-05-03 [COMPLETED] Manually Updated Attendance for Skill Assessment Day	
+2026-04-28 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-28 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-28 [COMPLETED] Semester 03 Dates Sheet Update	
+2026-04-28 [COMPLETED] Skill Assessment 4 – Execution	
+2026-04-28 [COMPLETED] Daily Report Sheet Update	
+2026-04-28 [COMPLETED] S-Vyasa Admission Process Document	
+2026-04-28 [COMPLETED] Instructor Attendance Updated in UniConnect	
+2026-04-28 [COMPLETED] Schedule Update in Campus Admin Portal	
+2026-04-27 [COMPLETED] Bootcamp Items and SOP Discussion		
+2026-04-27 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-27 [COMPLETED] Afternoon Attendance Marked for March 24		
+2026-04-27 [COMPLETED] Approval Coordination for Campus Recce		
+2026-04-27 [COMPLETED] SC Interaction Updated in UniConnect		
+2026-04-27 [COMPLETED] Campus Tour for Social Media Strategist		
+2026-04-27 [COMPLETED] Fixed Marks Retrieval Formula Issue		
+2026-04-27 [COMPLETED] Attendance Updated in Tracker Sheets		
+2026-04-27 [COMPLETED] Meeting with Chief of Staff – Bootcamp Planning		
+2026-04-27 [COMPLETED] Student Coordination for Address by Dean and CoS
+2026-04-27 [COMPLETED] Morning Attendance Updated		
+2026-04-27 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-27 [COMPLETED] Daily Report Sheet Update		
+2026-04-27 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-27 [COMPLETED] Coordination on ERP Access Issue for Results		
+2026-04-27 [COMPLETED] Bootcamp Checklist Discussion		
+2026-04-27 [COMPLETED] Instructor Assignment for Skill Assessment 4		
+2026-04-27 [COMPLETED] Daily Report Sheet Update		
+2026-04-27 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-27 [COMPLETED] SC Interaction Updated in UniConnect		
+2026-04-26 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-26 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-26 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-26 [COMPLETED] HDMI Cable Arrangement for Classroom		
+2026-04-26 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-25 [COMPLETED] GRIT Examination Rosters Printed		
+2026-04-25 [COMPLETED] Roster Attendance Cross-Verification		
+2026-04-25 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-25 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-25 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-25 [COMPLETED] Instructor Sync-Up for Skill Assessment 04		
+2026-04-25 [COMPLETED] Upcoming Week Schedule Shared with Instructors		
+2026-04-25 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-25 [COMPLETED] GRIT Examination Successfully Conducted		
+2026-04-24 [COMPLETED] GRIT Examination Data Segregation and Seating Arrangement	
+2026-04-24 [COMPLETED] University Amenities Documentation Support		
+2026-04-24 [COMPLETED] Daily Report Sheet Update		
+2026-04-24 [COMPLETED] University Amenities Photos Shared		
+2026-04-24 [COMPLETED] GRIT Examination Rosters Preparation		
+2026-04-24 [COMPLETED] Meeting with CoS on Bootcamp and Performance		
+2026-04-24 [COMPLETED] SC Interaction Updated in UniConnect
+2026-04-24 [COMPLETED] Upcoming Week Schedule Created		
+2026-04-23 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-23 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-23 [COMPLETED] Morning Session Attendance Updated		
+2026-04-23 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-22 [COMPLETED] Next Week Module Quiz Data Shared		
+2026-04-22 [COMPLETED] Afternoon Attendance Update		
+2026-04-22 [COMPLETED] SC Interaction Updated in UniConnect		
+2026-04-22 [COMPLETED] Consolidated Student Marks Sheet		
+2026-04-22 [COMPLETED] Seminar Hall and Media Room Booking		
+2026-04-22 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-22 [COMPLETED] Bootcamp Readiness Tracker Creation		
+2026-04-22 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-22 [COMPLETED] Morning Session Attendance Updated		
+2026-04-22 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-22 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-22 [COMPLETED] Next Week Schedule Preparation and Sharing		
+2026-04-22 [COMPLETED] Daily Report Sheet Update		
+2026-04-22 [COMPLETED] Afternoon Attendance Update		
+2026-04-21 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-21 [COMPLETED] Morning Session Attendance Updated		
+2026-04-21 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-21 [COMPLETED] Coordination with Yuvraj for Upcoming Bootcamp		
+2026-04-21 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-21 [COMPLETED] Bootcamp Update Coordination with Nawaz		
+2026-04-21 [COMPLETED] SC Interaction Updated in UniConnect		
+2026-04-21 [COMPLETED] Daily Report Sheet Update		
+2026-04-21 [COMPLETED] Provided 5.0 Lab Equipment for Student Project		
+2026-04-21 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-21 [COMPLETED] IP Address Updated for Attendance Issue		
+2026-04-21 [COMPLETED] Attendance Marked for First Slot Due to IP Issue		
+2026-04-20 [COMPLETED] Morning Session Attendance Updated		
+2026-04-20 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-20 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-20 [COMPLETED] Updated Afternoon Attendance		
+2026-04-20 [COMPLETED] Instructor Attendance Updated in UniConnect		
+2026-04-20 [COMPLETED] Classroom Noise Issue Addressed		
+2026-04-20 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-20 [COMPLETED] Discussion with University Operations POC on Tower C		
+2026-04-20 [COMPLETED] Skill Assessment-04 topics Preparation and Sharing		
+2026-04-20 [COMPLETED] IA-1 Marks Analysis and Segregation		
+2026-04-20 [COMPLETED] Daily Report Sheet Update		
+2026-04-20 [COMPLETED] SC Interaction Updated in UniConnect		
+2026-04-20 [COMPLETED] Off Dates Updated in  Admin Panel		
+2026-04-20 [COMPLETED] Afternoon Attendance Marked		
+2026-04-19 [COMPLETED] Morning Session Attendance Marked		
+2026-04-19 [COMPLETED] Meeting Coordination with University Admission POC	
+2026-04-19 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-19 [COMPLETED] Daily Report Sheet Update		
+2026-04-19 [COMPLETED] HDMI Cable Replacement and Issue Resolution		
+2026-04-19 [COMPLETED] Bootcamp Requirements Shared with PMA		
+2026-04-19 [COMPLETED] Escalation of Admission-Related Issues		
+2026-04-19 [COMPLETED] Student Device ID Update in Backend		
+2026-04-19 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-19 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-19 [COMPLETED] Internal Marks Sheet Verification and Correction		
+2026-04-14 [COMPLETED] Zoho Ticket Review and Closure		
+2026-04-14 [COMPLETED] Zoho Ticket Review and Closure		
+2026-04-14 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-14 [COMPLETED] Bootcamp Update Coordination with CoS		
+2026-04-14 [COMPLETED] Instructor University Update for Scheduling		
+2026-04-14 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-14 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-14 [COMPLETED] Student User IDs Sheet Update		
+2026-04-14 [COMPLETED] Bootcamp Coordination with Yuvraj		
+2026-04-14 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-14 [COMPLETED] Next Week Schedule Preparation		
+2026-04-14 [COMPLETED] SEB Trial Test Slots Update		
+2026-04-14 [COMPLETED] IA-01 Marks Consolidation and Section-wise Segregation
+2026-04-14 [COMPLETED] Daily Report Sheet Update		
+2026-04-14 [COMPLETED] Student Attendance Marking and Verification		
+2026-04-14 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-14 [COMPLETED] Daily Report Sheet Update		
+2026-04-14 [COMPLETED] Daily Report Sheet Update		
+2026-04-12 [COMPLETED] FFSD Subject IA-1 Answer Script Segregation		
+2026-04-12 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-12 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-12 [COMPLETED] Student Laptop Charger Misplacement – Resolution		
+2026-04-11 [COMPLETED] Admin Panel Update for University Off Date and Skill Assessment	
+2026-04-11 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-11 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-11 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-11 [COMPLETED] Daily Report Sheet Update		
+2026-04-11 [COMPLETED] Enhancement of Attendance Tracking Sheets		
+2026-04-11 [COMPLETED] Subject-wise Attendance and Class Validation		
+2026-04-11 [COMPLETED] Upcoming Week Schedule Review with CoS		
+2026-04-11 [COMPLETED] Instructor Sync-Up on IA-1 Evaluation Inputs		
+2026-04-11 [COMPLETED] IA-1 Answer Script Evaluation Discussion		
+2026-04-11 [COMPLETED] Upcoming Week Schedule Coordination with Instructors		
+2026-04-11 [COMPLETED] Communication with Instructors on Attendance Tracker Updates	
+2026-04-09 [COMPLETED] Discussion with CoS on GRIT Program		
+2026-04-09 [COMPLETED] Schedule Updated Due to Instructor Leave		
+2026-04-09 [COMPLETED] AC Issue Resolved in Section 1		
+2026-04-09 [COMPLETED] Daily Report Sheet Update		
+2026-04-09 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-09 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-09 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-04-09 [COMPLETED] Updated Centralized Daily Report Sheet		
+2026-04-09 [COMPLETED] Answer Script Segregation & Attendance Recording		
+2026-04-09 [COMPLETED] Quarterly Goals Upload		
+2026-04-09 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-09 [COMPLETED] Manual Attendance Update (IA-1 Exam)		
+2026-04-09 [COMPLETED] Schedule Revision		
+2026-04-09 [COMPLETED] Microphone Battery Replaced in Section 3		
+2026-04-09 [COMPLETED] Weekly Academic Progress Summary		
+2026-04-09 [COMPLETED] Schedule Submission & Summary Update		
+2026-04-09 [COMPLETED] Attendance Tracker Enhancement		
+2026-04-09 [COMPLETED] Updated the Schedule Daily Report sheet.	
+2026-04-09 [COMPLETED] Updated the University Employee & Staff Attendance Sheet		
+2026-04-09 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-09 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-08 [COMPLETED] 5.O Lab Images Shared with CoS		
+2026-04-08 [COMPLETED] Coordination with Central Team for Bootcamp		
+2026-04-08 [COMPLETED] Reworked Upcoming Week Schedule
+2026-04-08 [COMPLETED] Coordination for 5.O Lab Shoot
+2026-04-08 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-08 [COMPLETED] Daily Report Sheet Update		
+2026-04-08 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-08 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-08 [COMPLETED] Discussion on Upcoming Schedule & Skill Assessment		
+2026-04-08 [COMPLETED] Exam Answer Script Collection & Segregation		
+2026-04-08 [COMPLETED] IA-1 Answer Script Collection		
+2026-04-08 [COMPLETED] Attended KT Session on Student Engagement Updates		
+2026-04-08 [COMPLETED] Sync with Instructors on Internal Assessment Answer Scripts	
+2026-04-08 [COMPLETED] IDE Issues Status Confirmation		
+2026-04-08 [COMPLETED] Skill Assessment 3 Portion Update		
+2026-04-08 [COMPLETED] Seminar Hall Availability Check for Podcast		
+2026-04-08 [COMPLETED] University Coordination for Bootcamp Approval		
+2026-04-07 [COMPLETED] Master Sheet Creation for Internal Marks Consolidation	
+2026-04-07 [COMPLETED] Attendance Update – 07/04/2026
+2026-04-07 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-07 [COMPLETED] Afternoon Session Attendance Update – 07/04/2026		
+2026-04-07 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-07 [COMPLETED] DSA (C++) Exam Answer Script Segregation & Attendance Marking
+2026-04-07 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-07 [COMPLETED] Daily Report Sheet Update		
+2026-04-07 [COMPLETED] Subject-wise Internal Assessment Marks Sheet Creation & Sharing		
+2026-04-07 [COMPLETED] Next Week Schedule Planning Based on Prod Sequence		
+2026-04-06 [COMPLETED] Closure of Zoho Tickets		
+2026-04-06 [COMPLETED] Manual Schedule & Attendance Update in Admin Panel		
+2026-04-06 [COMPLETED] IA-1 Examination Assessment Information Update		
+2026-04-06 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-06 [COMPLETED] Daily Report Sheet Update		
+2026-04-06 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-06 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-06 [COMPLETED] Packing and Handover of Company Assets to Central Team	
+2026-04-05 [COMPLETED] Sync-Up with CoS		
+2026-04-05 [COMPLETED] Semester 1 Session Trackers Shared		
+2026-04-05 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-05 [COMPLETED] FFSD Topic Discrepancy Escalation		
+2026-04-05 [COMPLETED] Tower C Ground Floor Inspection		
+2026-04-05 [COMPLETED] Daily Report Sheet Update		
+2026-04-05 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-05 [COMPLETED] LLM Session Tracker Update		
+2026-04-05 [COMPLETED] Prod Sheet Update for All Subjects		
+2026-04-05 [COMPLETED] Tower C Inspection Update and Coordination		
+2026-04-05 [COMPLETED] Tower C Update Coordination with Central Team		
+2026-04-05 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-05 [COMPLETED] Tower C Media Folder Creation and Sharing
+2026-04-05 [COMPLETED] GRIT Results Sheet Creation and Sharing		
+2026-04-04 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-04 [COMPLETED] Offline Drive Exam – Operations & Invigilation 		
+2026-04-03 [COMPLETED] Daily Report Sheet Update		
+2026-04-03 [COMPLETED] Student Details Sheet Creation for Face Recognition		
+2026-04-03 [COMPLETED] Exam Reminder to IT Department		
+2026-04-03 [COMPLETED] Exam Dates Update in Admin Panel		
+2026-04-03 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-04-03 [COMPLETED] Internet Issues Sheet Update		
+2026-04-03 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-03 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-03 [COMPLETED] JFM Quarter Goals Update & Self-Assessment		
+2026-04-02 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-02 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-02 [COMPLETED] Manual Schedule & Attendance Update in Admin Panel	
+2026-04-02 [COMPLETED] Upcoming Week Schedule Preparation & Sharing		
+2026-04-02 [COMPLETED] Off Dates Update in Admin Panel		
+2026-04-02 [COMPLETED] LLM Attendance Sheet Segregation & Sharing		
+2026-04-01 [COMPLETED] Evidence Collection for Student Escalation		
+2026-04-01 [COMPLETED] Lost Phone Assistance		
+2026-04-01 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-04-01 [COMPLETED] Escalation Update Shared with CoS		
+2026-04-01 [COMPLETED] Murf AI Hackathon Certificate Generation		
+2026-04-01 [COMPLETED] Report Sheet Update		
+2026-04-01 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-04-01 [COMPLETED] Coordination for 5.0 Lab Partition Setup		
+2026-03-31 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-31 [COMPLETED] Updated S-VYASA GRIT Template for slot -3		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Student Escalation Resolution		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Attendance Update in S-VYASA GRIT Template		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Skill Assessment - 1 Exam Operations Management
+2026-03-31 [COMPLETED] Network Issue Coordination with University IT		
+2026-03-31 [COMPLETED] Closed Student Attendance Zoho Tickets		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] GRIT Slot 3 Roster Preparation		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Network Issue Coordination with University IT		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] GRIT Seating Arrangement – Slot 3		
+2026-03-31 [COMPLETED] GRIT Contest Execution – Slot 3		
+2026-03-31 [COMPLETED] GRIT Contest Execution – Slot 1 & Slot 2		
+2026-03-31 [COMPLETED] Supported GRIT Roster Preparation		
+2026-03-31 [COMPLETED] Student Fee Payment Assistance		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Updated Next Week Schedule for Holiday		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Updated IP Address in Admin Panel for Attendance		
+2026-03-31 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-31 [COMPLETED] Created GRIT Seating Arrangement		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] GRIT Seating Arrangement – Slot 4		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Coordination with CoS on Skill Assessment Updates and Attendance		
+2026-03-31 [COMPLETED] Skill Assessment - 2 Exam Operations Management		
+2026-03-31 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-31 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Updated S-VYASA GRIT Template for slot 4		
+2026-03-31 [COMPLETED] Prepared Next Week Schedule		
+2026-03-31 [COMPLETED] Attended Meeting on Upcoming GRIT Exam with Central Team	
+2026-03-31 [COMPLETED] Updated Subject-wise Attendance and Shared Report		
+2026-03-31 [COMPLETED] GRIT Attendance Update in Roster Sheet		
+2026-03-31 [COMPLETED] Added April Attendance Slots in Admin Panel		
+2026-03-31 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-31 [COMPLETED] Updated Daily Tasks in UNI CONNECT		
+2026-03-31 [COMPLETED] Discussion on Instructor Leave Policy and Compliance		
+2026-03-31 [COMPLETED] Escalation Discussion and Evidence Collection		
+2026-03-31 [COMPLETED] Updated S-Vyasa GRIT Template		
+2026-03-09 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-09 [COMPLETED] Discussion with NxtWave Hostel POC Regarding Snack Arrangement Request		
+2026-03-09 [COMPLETED] Discussion with Hostel POC Regarding Snack Distribution for NxtWave Students		
+2026-03-09 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-09 [COMPLETED] Updated the Schedule Daily Report sheet	
+2026-03-09 [COMPLETED] Closure of Zoho Tickets from Operations End		
+2026-03-09 [COMPLETED] Update Shared with CoS and Coordination with NxtWave Hostel POC		
+2026-03-09 [COMPLETED] HDMI Cable Arranged for Section 3 Classroom		
+2026-03-09 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-09 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-09 [COMPLETED] Assisted Students Stuck in Elevator		
+2026-03-08 [COMPLETED] Discussion with Subject Experts on IA-1 Portion Completion
+2026-03-08 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-08 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-08 [COMPLETED] Classroom Infrastructure Issues – Section 2 & Section 3	
+2026-03-08 [COMPLETED] Follow-up on ZOHO Tickets Status Update		
+2026-03-08 [COMPLETED] Updates Made to Upcoming Week Schedule		
+2026-03-08 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-08 [COMPLETED] Next Week Schedule Preparation and Instructor Intimation		
+2026-03-08 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-08 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-08 [COMPLETED] IA-1 Subject-wise Portion Tracking		
+2026-03-08 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-08 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-08 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-08 [COMPLETED] ZOHO Ticket Review and Resolution		
+2026-03-08 [COMPLETED] Automate Schedule Review Sheet Update		
+2026-03-08 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-08 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-08 [COMPLETED] Off Date Updated in Admin Panel		
+2026-03-08 [COMPLETED] IA-1 Exam Date Confirmation and Portion Update	
+2026-03-08 [COMPLETED] Discussion with CoS and PMA on IA-1 Portion Completion		
+2026-03-04 [COMPLETED] Morning Session Attendance Recording		
+2026-03-04 [COMPLETED] Computer Lab Arrangement for University Inspection
+2026-03-04 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-04 [COMPLETED] Update of University Payroll vs NIAT Payroll Sheet	
+2026-03-04 [COMPLETED] Computer Lab Arrangement for University Video Shoot		
+2026-03-04 [COMPLETED] Discussion with CoS – AC Issue Escalation		
+2026-03-04 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-04 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-04 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-04 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-04 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-04 [COMPLETED] Schedule Revision Discussion with CoS		
+2026-03-04 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-04 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-04 [COMPLETED] Schedule Update and Sharing with CoS		
+2026-03-04 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-04 [COMPLETED] Student Fee Payment Assistance		
+2026-03-02 [COMPLETED] Student Fee Payment Assistance		
+2026-03-02 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-02 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-02 [COMPLETED] Semester 2 Product Sequence Sheet Update		
+2026-03-02 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-02 [COMPLETED] KT Sessions – Automatic Schedule & UNI Connect	
+2026-03-02 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-02 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-02 [COMPLETED] Student Data Collection for Records		
+2026-03-02 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-03-02 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-03-02 [COMPLETED] Section-wise Attendance Slots Created		
+2026-03-02 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-02 [COMPLETED] DBMS Instructor Platform – “Querying with SQL Part 4” Not Visible		
+2026-03-02 [COMPLETED] Attendance Tracker Update		
+2026-03-02 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-03-02 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-03-02 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-03-02 [COMPLETED] Classroom Network Connectivity Issue		
+2026-03-02 [COMPLETED] Module Quiz Invigilation Support		
+2026-03-02 [COMPLETED] Online Class Arrangement Due to Instructor Leave		
+2026-02-26 [COMPLETED] Next Week Schedule Created and Shared	
+2026-02-26 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-26 [COMPLETED] Attendance Tracker Update		
+2026-02-26 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-02-26 [COMPLETED] Coordination with CoS on ZOHO Tickets, Semester Registration, and GRIT Follow-up		
+2026-02-26 [COMPLETED] ZOHO Ticket Review and Resolution		
+2026-02-26 [COMPLETED] Student Fee Payment Assistance		
+2026-02-26 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-25 [COMPLETED] Student Name Correction – ZOHO Portal		
+2026-02-25 [COMPLETED] ZOHO Ticket Review and Resolution		
+2026-02-25 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-25 [COMPLETED] Subject Content Unlocked for Student		
+2026-02-25 [COMPLETED] Student Data Collection for Records		
+2026-02-25 [COMPLETED] Manual Attendance Update in Admin Panel	
+2026-02-25 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-25 [COMPLETED] Attendance Tracker Update		
+2026-02-25 [COMPLETED] Trial Announcement Testing in Campus Admin Portal	
+2026-02-25 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-02-25 [COMPLETED] Discussion with CoS Regarding Next Steps		
+2026-02-24 [COMPLETED] Student Data Collection for Records		
+2026-02-24 [COMPLETED] AI-Powered Humanoid Robotics Workshop Certificates Generated		
+2026-02-24 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-24 [COMPLETED] Student NIAT ID Upload in Admin Panel		
+2026-02-24 [COMPLETED] Important Announcement Published in Campus Admin Portal		
+2026-02-24 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-24 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-02-24 [COMPLETED] ZOHO Ticket Review and Resolution		
+2026-02-24 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-02-24 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-02-23 [COMPLETED] Classroom Quiz Unlock Request – Web Application Development 2		
+2026-02-23 [COMPLETED] Coordination with University Operations Manager – Podcast Room & Classroom Issues		
+2026-02-23 [COMPLETED] ZOHO Ticket Review and Resolution		
+2026-02-23 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-23 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-02-23 [COMPLETED] Student Fee Payment Assistance		
+2026-02-23 [COMPLETED] Coordination with University POC Regarding Holi Celebration		
+2026-02-23 [COMPLETED] Fee Status Verification – Student Credentials Review	
+2026-02-23 [COMPLETED] SEB Mock Test Support and Attendance Marking		
+2026-02-23 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-02-23 [COMPLETED] Schedule Update in Campus Admin Portal		
+2026-02-23 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-22 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-22 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-22 [COMPLETED] Student Fee Payment Assistance		
+2026-02-22 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-22 [COMPLETED] Manual Attendance Update in Admin Panel	
+2026-02-22 [COMPLETED] Monday's Schedule Updated in Campus Admin Portal	
+2026-02-22 [COMPLETED] Campus Admin Portal – Schedule Verification		
+2026-02-22 [COMPLETED] Updated Semester Start and End Date Sheet		
+2026-02-22 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-22 [COMPLETED] Zoho Tickets Review, Closure & OPS Remarks Update	
+2026-02-22 [COMPLETED] Update on ZOHO Ticket Status	
+2026-02-22 [COMPLETED] GRIT Registrations Sheet – Section-wise Update
+2026-02-22 [COMPLETED] Next Week Schedule Created and Shared		
+2026-02-22 [COMPLETED] Fee Status Verification – Student Credentials Review		
+2026-02-22 [COMPLETED] SEB Mock Test Support & Attendance Marking		
+2026-02-22 [COMPLETED] Manual Attendance Update – Section 1 (Yoga Practice)	
+2026-02-22 [COMPLETED] Discussion with University Hostel POC – Food Concern		
+2026-02-22 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-02-22 [COMPLETED] Update Shared with SC on Parent Tickets		
+2026-02-19 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-19 [COMPLETED] Assisted University BOA with Admin Portal Issue
+2026-02-19 [COMPLETED] SEB Mock Test Support & Attendance Marking		
+2026-02-19 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-02-19 [COMPLETED] Semester 2 Registration Progress Update		
+2026-02-19 [COMPLETED] Student Fee Payment Assistance		
+2026-02-19 [COMPLETED] Afternoon Session Attendance Recorded – Sections 1 		
+2026-02-19 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-19 [COMPLETED] Discussion with Central BOA on Portal, Fee Payment & NIAT App Queries
+2026-02-19 [COMPLETED] Semester 2 Registration Progress Update		
+2026-02-19 [COMPLETED] Student Fee Payment Assistance		
+2026-02-19 [COMPLETED] Updated the Staff Attendance Sheet		
+2026-02-19 [COMPLETED] Student Device IDs Reset in Admin Panel	
+2026-02-19 [COMPLETED] Student Data Collection for Records		
+2026-02-19 [COMPLETED] Tomorrow’s Schedule Updated in Campus Admin Portal	
+2026-02-19 [COMPLETED] Campus Admin Portal Issues Escalated to Central BOA		
+2026-02-19 [COMPLETED] Updated Attendance Data for Zoho		
+2026-02-19 [COMPLETED] Meeting Attended Regarding SEB		
+2026-02-19 [COMPLETED] Manual Attendance Update in Admin Panel	
+2026-02-19 [COMPLETED] Afternoon Session Attendance Recorded – Sections 1 & 2		
+2026-02-19 [COMPLETED] Zoho Tickets Reviewed and Closed		
+2026-02-17 [COMPLETED] Discussion on Hostel Bed Availability		
+2026-02-17 [COMPLETED] Instructor Content Access Support		
+2026-02-17 [COMPLETED] Makers Conclave Exam Invigilation		
+2026-02-17 [COMPLETED] Student Fee Payment Assistance		
+2026-02-17 [COMPLETED] Semester 2 Registration Progress Update		
+2026-02-17 [COMPLETED] Tomorrow’s Schedule Updated in Campus Admin Portal		
+2026-02-17 [COMPLETED] Student Device IDs Reset in Admin Panel	
+2026-02-17 [COMPLETED] Updated the Schedule Daily Report sheet.		
+2026-02-17 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-02-17 [COMPLETED] Student Portal Access Follow-up		
+2026-02-17 [COMPLETED] Hostel Student Count Update		
+2026-02-17 [COMPLETED] Coordination for Sports Equipment Collection		
+2026-02-16 [COMPLETED] Semester 2 Schedule Update Shared with Central Team		
+2026-02-16 [COMPLETED] Classroom Quiz Access Issue Escalated
+2026-02-16 [COMPLETED] Semester 2 Registration Update
+2026-02-16 [COMPLETED] Schedule Changes Updated in Campus Admin Portal
+2026-02-16 [COMPLETED] Student Device IDs Reset in Admin Panel		
+2026-02-16 [COMPLETED] Tomorrow’s Schedule Updated in Campus Admin Portal		
+2026-02-16 [COMPLETED] Manual Attendance Update in Admin Panel		
+2026-02-16 [COMPLETED] Student Data Collection for Records		
+2026-02-16 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-02-16 [COMPLETED] Meeting on GRIT Exam, Conclave Exam, and Upcoming Events		
+2026-02-15 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-15 [COMPLETED] Student Data Collection for Records
+2026-02-15 [COMPLETED] Manual Attendance Update in Admin Panel
+2026-02-15 [COMPLETED] Tomorrow’s Schedule Updated in Campus Admin Portal
+2026-02-15 [COMPLETED] Attendance Recorded and Updated for Sections 2 & 3	
+2026-02-15 [COMPLETED] Schedule Changes Updated in Campus Admin Portal
+2026-02-15 [COMPLETED] Student Device IDs Reset in Admin Panel
+2026-02-15 [COMPLETED] Parent Communication – Click & Share from Guru Prasad’s Laptop
+2026-02-15 [COMPLETED] Next Week Schedule Updated in Campus Admin Portal	
+2026-02-15 [COMPLETED] Parent Announcement Published in Campus Admin Portal
+2026-02-13 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-13 [COMPLETED] Updated the Staff Attendance Sheet	
+2026-02-13 [COMPLETED] Weekly Subject Topics Updated for Upcoming Schedule
+2026-02-13 [COMPLETED] Section-wise Attendance Slots Created
+2026-02-13 [COMPLETED] Semester 2 Attendance Slots Created in Admin Panel
+2026-02-12 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-12 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-12 [COMPLETED] Schedule Update Closure Post Review
+2026-02-12 [COMPLETED] Campus Tour Support for Admission Counsellor
+2026-02-12 [COMPLETED] Student Fee Payment Support	
+2026-02-12 [COMPLETED] IA-1 and IA-2 Marks Verification – Maths
+2026-02-12 [COMPLETED] Scheduled Sync-Up Meeting
+2026-02-12 [COMPLETED] Cash Withdrawal and Transfer Support
+2026-02-12 [COMPLETED] Schedule Revision and Finalization for Review
+2026-02-12 [COMPLETED] Support and Coordination for Pending Laboratory Exam
+2026-02-11 [COMPLETED] Click n Share Support for Students
+2026-02-11 [COMPLETED] ERP Support for Course Mapping
+2026-02-11 [COMPLETED] Wacom Tabs Tracker Update
+2026-02-11 [COMPLETED] NIAT Daily Report Sheet Update
+2026-02-11 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-11 [COMPLETED] Dropout Data Update
+2026-02-11 [COMPLETED] Schedule Preparation and Review Submission
+2026-02-11 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-10 [COMPLETED] Student Fee Payment Support
+2026-02-10 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-10 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-10 [COMPLETED] Campus Visit Support for Parent and Student
+2026-02-10 [COMPLETED] Schedule Sheet Creation and Subject Code Up
+2026-02-09 [COMPLETED] Copy of Final Semester 1 Attendance Sheet Sharing
+2026-02-09 [COMPLETED] NIAT Daily Report Sheet Update
+2026-02-09 [COMPLETED] AI-Powered Humanoid Robotics Workshop Certificate Creation
+2026-02-09 [COMPLETED] IA-1 & IA-2 Exam Folder and Timetable Sharing
+2026-02-09 [COMPLETED] Campus Visit Support for Parent and Student
+2026-02-09 [COMPLETED] Semester 2 Fee Tracker Pivot & Pie Chart Creation
+2026-02-09 [COMPLETED] ERP Data Update Deadline Communication
+2026-02-09 [COMPLETED] Instructor Support on Student Attendance Updates
+2026-02-09 [COMPLETED] Student Fee Payment Support
+2026-02-09 [COMPLETED] Student Fee Payment Assistance
+2026-02-09 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-09 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-08 [COMPLETED] Escalation of My NIAT App Access Issue
+2026-02-08 [COMPLETED] Assistance on Second Semester Fee Payment
+2026-02-08 [COMPLETED] Follow-up on Second Semester Start Date Update
+2026-02-08 [COMPLETED] Attendance Slot Addition for Laboratory Examination
+2026-02-08 [COMPLETED] Attendance Discrepancy Check and Correction
+2026-02-08 [COMPLETED] Mid Exam 2 Answer Script Submission
+2026-02-08 [COMPLETED] Student Device ID Deletion for App Login Issue
+2026-02-08 [COMPLETED] Student Support During Semester Examination
+2026-02-08 [COMPLETED] Schedule Daily Report Update
+2026-02-08 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-06 [COMPLETED] Semester 1 Academic Examination Updated in Admin Panel
+2026-02-06 [COMPLETED] University Staff Attendance Update
+2026-02-06 [COMPLETED] Semester 1 Semester Holiday Updated in Admin Panel
+2026-02-06 [COMPLETED] Learning Portal Access Issue – Transferred Student
+2026-02-06 [COMPLETED] Schedule Daily Report Update
+2026-02-06 [COMPLETED] Session Trackers Collected and Shared with Central BOA
+2026-02-06 [COMPLETED] Semester 1 Study Holidays Updated in Admin Panel
+2026-02-05 [COMPLETED] Announcement Testing in Campus Admin Portal and Issue Reported to PMA
+2026-02-05 [COMPLETED] Updated the Staff Attendance Sheet
+2026-02-05 [COMPLETED] Updated the Schedule Daily Report sheet.
+2026-02-05 [COMPLETED] Click n Share Completed for 26 Members
+2026-02-05 [COMPLETED] Coordination with CDU Team Regarding Student Learning Portal Issue
+2026-02-05 [COMPLETED] Sample Schedule Template Prepared and Shared for PMA Review
+2026-02-05 [COMPLETED] Coordination with Yenepoya PMA for Goals Updation Clarification
+2026-02-05 [COMPLETED] Creation of Section-wise Attendance Sheets and Master Consolidation for Second Semester
+2026-02-04 [COMPLETED] University Staff Attendance Update
+2026-02-04 [COMPLETED] Schedule Daily Report Update
+2026-02-03 [COMPLETED] University Staff Attendance Update
+2026-02-03 [COMPLETED] Second Semester Attendance Master Sheet Completion
+2026-02-03 [COMPLETED] Daily Schedule Report Update
+2026-02-03 [COMPLETED] Semester Fee Status Check
+2026-02-03 [COMPLETED] Stand-up Meeting with COS
+2026-02-02 [COMPLETED] Semester 2 Attendance Sheet Completion
+2026-02-02 [COMPLETED] Active Instructor Count Sheet Update
+2026-02-02 [COMPLETED] University Staff Attendance Update
+2026-02-02 [COMPLETED] Daily Schedule Report Update
+2026-02-02 [COMPLETED] Student Fee Payment Issue Resolved
+2026-02-02 [COMPLETED] Instructor Learning Platform Access Issue Resolved
+2026-02-02 [COMPLETED] Fee Status Review
+2026-02-01 [COMPLETED] Coordination with University Team on Lost ID Card Procedure
+2026-02-01 [COMPLETED] Cross-Verification and Correction of Loan Details in Fee Tracker
+2026-02-01 [COMPLETED] Assistance Provided for Parent Campus Tour
+2026-02-01 [COMPLETED] Fee Status Review and Fee Tracker Update
+2026-02-01 [COMPLETED] Creation of Semester 2 Section-wise Student Attendance Sheets
+2026-02-01 [COMPLETED] Discussion with CoS on Fee Payment Status Confirmation
+2026-02-01 [COMPLETED] Creation and Sharing of Semester 1 Consolidated Student Data Folder
+2026-02-01 [COMPLETED] Verification of Escalation Tickets in NIAT Zoho Portal
+2026-02-01 [COMPLETED] Daily Staff Attendance Update
+2026-02-01 [COMPLETED] Support Provided for Lost Examination Hall Ticket

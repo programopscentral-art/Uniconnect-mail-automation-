@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attendance decision — summary and full brief | NIAT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5F7FA;--card:#FFF;--ink:#14212C;--ink2:#48596A;--ink3:#7A8996;
+  --rule:#DAE2E9;--rule2:#EBF0F4;
+  --a:#0E7C86;--at:#E0EFF1;--a2:#0A5E66;
+  --b:#4B3F9E;--bt:#EBE9F7;--b2:#38307A;
+  --draw:#66757F;--drawt:#EDF1F3;
+  --warn:#AB3E28;--warnt:#F9E7E3;--ok:#1D6046;--okt:#E1EFE8;--amb:#8B5F05;--ambt:#FBF1DA;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+.bar{height:5px;background:linear-gradient(90deg,var(--a) 0 50%,var(--b) 50%)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px 40px}
+h1,h2,h3{font-family:Archivo,sans-serif;letter-spacing:-.015em;margin:0}
+p{margin:0 0 7px}
+a{color:var(--a2)}
+.mono{font-family:"IBM Plex Mono",monospace;font-size:.9em}
+
+.mast{padding:24px 0 12px}
+.kick{font-family:Archivo,sans-serif;font-weight:600;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);margin:0 0 7px}
+h1{font-weight:700;font-size:clamp(23px,4vw,31px);line-height:1.05;margin-bottom:7px}
+.dek{font-size:14px;color:var(--ink2);max-width:82ch;margin-bottom:11px}
+.meta{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:7px;background:var(--card);overflow:hidden;font-size:11.5px}
+.meta div{padding:5px 11px;border-right:1px solid var(--rule2);flex:1;min-width:98px}
+.meta div:last-child{border-right:0}
+.meta dt{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.meta dd{margin:0;font-weight:600}
+
+.verdict{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--warn);border-radius:8px;padding:11px 14px;margin:12px 0}
+.verdict .lab{font-family:Archivo,sans-serif;font-size:9px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;color:var(--warn);margin-bottom:4px}
+.verdict p:last-child{margin-bottom:0}
+
+h2{font-weight:700;font-size:15px;margin:14px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--rule)}
+
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.side{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.side.A{border-top:3px solid var(--a)}.side.B{border-top:3px solid var(--b)}
+.side .tag{font-family:"IBM Plex Mono",monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.side.A .tag{color:var(--a)}.side.B .tag{color:var(--b)}
+.side h3{font-size:14.5px;margin-bottom:1px}
+.side .arch{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--ink3);margin-bottom:5px}
+.side p{font-size:11.5px;color:var(--ink2);margin:0}
+.side .big{font-family:Archivo,sans-serif;font-weight:700;font-size:19px;margin:6px 0 1px}
+.side.A .big{color:var(--a2)}.side.B .big{color:var(--b2)}
+.side .sm{font-size:10.5px;color:var(--ink3);margin-bottom:5px}
+
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:7px;background:var(--card);margin-bottom:9px}
+table{width:100%;border-collapse:collapse;font-size:11.2px;min-width:520px}
+th{background:#F0F4F7;color:var(--ink2);text-align:left;font-weight:600;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border-bottom:1px solid var(--rule)}
+th.cA{background:var(--at);color:var(--a2)}th.cB{background:var(--bt);color:var(--b2)}
+td{padding:4px 8px;border-bottom:1px solid var(--rule2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+td.colA{background:rgba(14,124,134,.035)}td.colB{background:rgba(75,63,158,.035)}
+tfoot td{font-weight:600;background:#F0F4F7}
+caption{caption-side:bottom;text-align:left;padding:5px 8px;font-size:9.8px;color:var(--ink3);line-height:1.4}
+.wa{color:var(--a2);font-weight:700}.wb{color:var(--b2);font-weight:700}.wd{color:var(--draw);font-weight:700}
+.pill{display:inline-block;padding:0 5px;border-radius:20px;font-size:8.2px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.pv{background:var(--okt);color:var(--ok)}.pe{background:var(--ambt);color:var(--amb)}.pu{background:var(--warnt);color:var(--warn)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
+.note{border-radius:7px;padding:8px 11px;border-left:3px solid;font-size:11.2px}
+.note .nt{font-family:Archivo,sans-serif;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:3px}
+.note p:last-child,.note ul:last-child{margin-bottom:0}
+.note ul{margin:0;padding-left:15px}.note li{margin-bottom:2px}
+.na{background:var(--at);border-color:var(--a)}.na .nt{color:var(--a2)}
+.nb{background:var(--bt);border-color:var(--b)}.nb .nt{color:var(--b2)}
+.nk{background:var(--drawt);border-color:var(--draw)}.nk .nt{color:var(--draw)}
+.nr{background:var(--warnt);border-color:var(--warn)}.nr .nt{color:var(--warn)}
+
+.cta{display:block;margin-top:12px;background:var(--ink);color:#fff;border-radius:9px;padding:13px 18px;text-decoration:none}
+.cta .t{font-family:Archivo,sans-serif;font-weight:700;font-size:15px;margin-bottom:3px;color:#fff}
+.cta .s{font-size:11.2px;color:#B9C6D0;line-height:1.45}
+.cta .arrow{float:right;font-size:20px;line-height:1;color:#fff;margin-left:12px}
+.cta:hover{background:#0d1b24}
+
+@media(max-width:720px){.vs,.grid2{grid-template-columns:1fr}.meta div{border-right:0;border-bottom:1px solid var(--rule2)}}
+@media print{
+  body{background:#fff;font-size:8.8pt;line-height:1.38}
+  .wrap{max-width:100%;padding:0 2mm}
+  .tw{overflow:visible!important}
+  table{min-width:0!important;table-layout:fixed;font-size:7.5pt}
+  th,td{padding:3px 4.6px!important;word-wrap:break-word;overflow-wrap:anywhere}
+  td.num,th.num{font-size:7.3pt}
+  caption{font-size:6.7pt;padding:4px}
+  .note{font-size:7.4pt;padding:7px 9px}
+  h1{font-size:21pt}h2{font-size:11pt;margin:11px 0 5px}
+  .dek{font-size:8.8pt}.side p{font-size:7.6pt}.side .big{font-size:16px}
+  .mast{padding:8px 0 6px}
+  .verdict{margin:9px 0;padding:9px 12px;font-size:8pt}
+  .cta{background:#fff!important;color:var(--ink)!important;border:1.5px solid var(--ink);padding:9px 12px}
+  .cta .t{color:var(--ink)!important;font-size:11.5pt}
+  .cta .s{color:var(--ink2)!important;font-size:7.6pt}
+  .cta .arrow{color:var(--ink)!important}
+  .note,.side,tr{break-inside:avoid}
+  thead{display:table-header-group}
+  a{text-decoration:none}
+}
+
+/* ================= FULL BRIEF (scoped) ================= */
+#fullbrief *{box-sizing:border-box}#fullbrief{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14.5px;line-height:1.5;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}#fullbrief .bar{height:5px;background:linear-gradient(90deg,var(--a) 0 50%,var(--b) 50%)}#fullbrief .wrap{max-width:1000px;margin:0 auto;padding:0 20px 60px}#fullbrief h1, #fullbrief h2, #fullbrief h3, #fullbrief h4{font-family:Archivo,sans-serif;letter-spacing:-.014em;margin:0}#fullbrief p{margin:0 0 9px;max-width:80ch}#fullbrief ul{margin:0 0 9px;padding-left:17px}#fullbrief li{margin-bottom:3px}#fullbrief a{color:var(--a);text-decoration:none;border-bottom:1px solid rgba(14,124,134,.3)}#fullbrief a:focus-visible, #fullbrief button:focus-visible{outline:2px solid var(--a);outline-offset:2px}#fullbrief .mono{font-family:"IBM Plex Mono",monospace;font-size:.9em}#fullbrief .mast{padding:30px 0 16px}#fullbrief .kick{font-family:Archivo,sans-serif;font-weight:600;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);margin:0 0 9px}#fullbrief h1{font-weight:700;font-size:clamp(25px,4.4vw,34px);line-height:1.06;margin-bottom:9px}#fullbrief .dek{font-size:15px;color:var(--ink2);max-width:74ch;margin-bottom:14px}#fullbrief .meta{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--rule);border-radius:8px;background:var(--card);overflow:hidden}#fullbrief .meta div{padding:7px 12px;border-right:1px solid var(--rule2);flex:1;min-width:110px}#fullbrief .meta div:last-child{border-right:0}#fullbrief .meta dt{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:600;margin-bottom:1px}#fullbrief .meta dd{margin:0;font-size:12.5px;font-weight:600}#fullbrief section{padding:20px 0 2px;border-top:1px solid var(--rule);margin-top:16px}#fullbrief .snum{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink3);letter-spacing:.08em;display:block;margin-bottom:3px}#fullbrief h2{font-weight:700;font-size:20px;margin-bottom:5px}#fullbrief .sub{color:var(--ink2);font-size:13.5px;max-width:82ch;margin-bottom:12px}#fullbrief h3{font-weight:600;font-size:14px;margin:14px 0 6px}#fullbrief .tw{overflow-x:auto;margin:0 0 12px;border:1px solid var(--rule);border-radius:8px;background:var(--card)}#fullbrief table{width:100%;border-collapse:collapse;font-size:11.6px;min-width:520px}#fullbrief table.lnk td div{margin-bottom:5px;line-height:1.5}#fullbrief table.lnk td div:last-child{margin-bottom:0}#fullbrief table.lnk a{font-family:'IBM Plex Mono',monospace;font-size:.94em;word-break:break-all;text-decoration:underline;text-underline-offset:2px}#fullbrief th{background:#F0F4F7;color:var(--ink2);text-align:left;font-weight:600;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--rule)}#fullbrief th.cA{background:var(--at);color:var(--a2)}#fullbrief th.cB{background:var(--bt);color:var(--b2)}#fullbrief td{padding:5px 8px;border-bottom:1px solid var(--rule2);vertical-align:top}#fullbrief tr:last-child td{border-bottom:0}#fullbrief td.num, #fullbrief th.num{text-align:right;font-family:"IBM Plex Mono",monospace;white-space:nowrap}#fullbrief td.colA{background:rgba(14,124,134,.035)}#fullbrief td.colB{background:rgba(75,63,158,.035)}#fullbrief tfoot td{font-weight:600;background:#F0F4F7}#fullbrief caption{caption-side:bottom;text-align:left;padding:6px 8px;font-size:10.6px;color:var(--ink3);line-height:1.42}#fullbrief .wa{color:var(--a2);font-weight:700}#fullbrief .wb{color:var(--b2);font-weight:700}#fullbrief .wd{color:var(--draw);font-weight:700}#fullbrief .pill{display:inline-block;padding:0 5px;border-radius:20px;font-size:8.8px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}#fullbrief .pv{background:var(--okt);color:var(--ok)}#fullbrief .pe{background:var(--ambt);color:var(--amb)}#fullbrief .pu{background:var(--warnt);color:var(--warn)}#fullbrief .note{border-radius:8px;padding:10px 13px;margin:0 0 12px;border-left:3px solid;font-size:12.8px;max-width:none}#fullbrief .note p:last-child, #fullbrief .note ul:last-child{margin-bottom:0}#fullbrief .note .nt{font-family:Archivo,sans-serif;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px}#fullbrief .nk{background:var(--drawt);border-color:var(--draw)}#fullbrief .nk .nt{color:var(--draw)}#fullbrief .nr{background:var(--warnt);border-color:var(--warn)}#fullbrief .nr .nt{color:var(--warn)}#fullbrief .ng{background:var(--ambt);border-color:var(--amb)}#fullbrief .ng .nt{color:var(--amb)}#fullbrief .na{background:var(--at);border-color:var(--a)}#fullbrief .na .nt{color:var(--a2)}#fullbrief .nb{background:var(--bt);border-color:var(--b)}#fullbrief .nb .nt{color:var(--b2)}#fullbrief .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}#fullbrief .mets{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}#fullbrief .met{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 11px}#fullbrief .met b{display:block;font-family:Archivo,sans-serif;font-weight:700;font-size:19px;line-height:1.05;margin-bottom:2px}#fullbrief .met span{font-size:10.8px;color:var(--ink2);line-height:1.35;display:block}#fullbrief .met.ca b{color:var(--a)}#fullbrief .met.cb b{color:var(--b)}#fullbrief .met.cd b{color:var(--draw)}#fullbrief .met.cw b{color:var(--warn)}#fullbrief .vs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}#fullbrief .side{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:11px 13px}#fullbrief .side.A{border-top:3px solid var(--a)}#fullbrief .side.B{border-top:3px solid var(--b)}#fullbrief .side .tag{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}#fullbrief .side.A .tag{color:var(--a)}#fullbrief .side.B .tag{color:var(--b)}#fullbrief .side h3{margin:0 0 2px;font-size:16px}#fullbrief .side .arch{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink3);margin-bottom:6px}#fullbrief .side p{font-size:12.2px;color:var(--ink2);margin:0}#fullbrief .sc{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin-bottom:12px}#fullbrief .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}#fullbrief .presets button{font:600 11.5px Inter,sans-serif;padding:5px 10px;border-radius:16px;border:1px solid var(--rule);background:#fff;color:var(--ink2);cursor:pointer}#fullbrief .presets button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}#fullbrief .rbar{height:26px;border-radius:5px;overflow:hidden;display:flex;margin-bottom:6px}#fullbrief .rbar div{display:flex;align-items:center;font:700 12px Archivo,sans-serif;color:#fff;padding:0 9px;transition:width .25s}#fullbrief .rbar .ba{background:var(--a)}#fullbrief .rbar .bb{background:var(--b);justify-content:flex-end}#fullbrief .rout{font-size:12.5px;color:var(--ink2);margin:0}#fullbrief .wsl{width:78px;accent-color:var(--ink);vertical-align:middle}
+
+@media(max-width:720px){#fullbrief .mets{grid-template-columns:repeat(2,1fr)}#fullbrief .vs, #fullbrief .grid2{grid-template-columns:1fr}#fullbrief .meta div{border-right:0;border-bottom:1px solid var(--rule2)}
+}
+@media(prefers-reduced-motion:reduce){#fullbrief *{transition:none!important}}
+@media print{#fullbrief .xlink{display:none}#fullbrief{background:#fff;font-size:8.6pt;line-height:1.38}#fullbrief .wrap{max-width:100%;padding:0 2mm}#fullbrief .tw{overflow:visible!important}#fullbrief table{min-width:0!important;width:100%!important;table-layout:fixed;font-size:7.2pt}#fullbrief th, #fullbrief td{padding:2.7px 4.2px!important;word-wrap:break-word;overflow-wrap:anywhere}#fullbrief td.num, #fullbrief th.num{font-size:7.1pt}#fullbrief caption{font-size:6.6pt;padding:4px}#fullbrief .note{font-size:7.5pt;padding:6px 8px;margin-bottom:6px}#fullbrief .met b{font-size:14px}#fullbrief .met span{font-size:6.8pt}#fullbrief h1{font-size:22pt}#fullbrief h2{font-size:13pt}#fullbrief h3{font-size:9.6pt}#fullbrief .dek{font-size:9pt}#fullbrief .sub{font-size:8pt}#fullbrief section{padding-top:8px;margin-top:6px}#fullbrief .note, #fullbrief .met, #fullbrief .side, #fullbrief tr, #fullbrief .tw.keep{break-inside:avoid}#fullbrief thead{display:table-header-group}#fullbrief h2{break-after:avoid}#fullbrief h3{break-after:avoid}#fullbrief h3#srch{break-after:auto;break-before:page}#fullbrief #srch{break-after:auto}#fullbrief #srch{font-size:8.4pt;margin:5px 0 3px;break-before:avoid}#fullbrief #srch + p{orphans:2;widows:2;font-size:6.1pt;line-height:1.3}#fullbrief .presets, #fullbrief .wsl, #fullbrief .sc .rbar, #fullbrief .sc .rout{display:none}#fullbrief .sc{display:none}#fullbrief a{color:var(--a2);text-decoration:underline;text-underline-offset:1.5px;border-bottom:none}#fullbrief table.lnk td div{margin-bottom:2.5px}#fullbrief table.lnk a{font-family:'IBM Plex Mono',monospace;font-size:6.3pt;word-break:break-all}#fullbrief .side p{font-size:8.2pt}
+}
+
+#fullbrief{display:none;padding-top:6px}
+#fullbrief.open{display:block}
+#fullbrief .wrap{padding-bottom:40px}
+.backtop{position:sticky;bottom:14px;float:right;margin:0 8px 8px 0;background:var(--ink);color:#fff;border:0;border-radius:20px;padding:8px 15px;font:600 12px Inter,sans-serif;cursor:pointer;z-index:20}
+@media print{#fullbrief{display:block!important}.backtop{display:none}#fullbrief{break-before:page}}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="wrap">
+
+<header class="mast">
+  <p class="kick">Decision summary &middot; Attendance architecture &middot; NIAT Success Pod</p>
+  <h1>AttendSmart or classroom cameras &mdash; the difference in two pages</h1>
+  <p class="dek">Both solutions work. They fail on opposite axes, and cost differs by a factor of five. This is the whole comparison compressed; the full brief behind it carries the workings, sources and hardware detail.</p>
+  <dl class="meta">
+    <div><dt>Prepared by</dt><dd>Karthikeya, APM&#8209;1</dd></div>
+    <div><dt>Date</dt><dd>31 July 2026</dd></div>
+    <div><dt>Scale</dt><dd>106 rooms &middot; 18 universities</dd></div>
+    <div><dt>Students</dt><dd>7,429 &middot; ~70/room</dd></div>
+    <div><dt>Status</dt><dd>For decision</dd></div>
+  </dl>
+</header>
+
+<div class="verdict">
+  <div class="lab">The one-line difference</div>
+  <p><strong>AttendSmart knows <em>who</em>, not <em>where</em>. The camera knows <em>where</em>, not <em>whose</em>.</strong> AttendSmart gets a face 100&ndash;300 pixels wide but cannot prove the student is in the room. The camera guarantees a body in a seat but sees that face at 24&ndash;40 pixels and has no liveness check at all.</p>
+  <p style="margin-top:4px">Scored on 15 criteria at equal weight they finish <strong>46&ndash;48</strong> &mdash; a dead heat. Three of five weightings favour the camera, two favour AttendSmart. <strong>There is no technically correct answer; there is a choice about which six criteria matter most to NIAT.</strong></p>
+</div>
+
+<div class="vs">
+  <div class="side A">
+    <div class="tag">Option A &mdash; built, field-tested</div>
+    <h3>AttendSmart</h3>
+    <p class="arch">device-mediated &middot; laptop-first</p>
+    <div class="big">&#8377;17.8 &ndash; 28.1 L</div>
+    <div class="sm">3-year total &middot; &#8377;80&ndash;126 per student per year</div>
+    <p>Code on the classroom screen, typed within 10 seconds, then two blinks at the student&rsquo;s own laptop webcam. Runs on the mandatory college laptop, so no NIAT hardware in any room.</p>
+  </div>
+  <div class="side B">
+    <div class="tag">Option B &mdash; proposed, not built</div>
+    <h3>Classroom camera</h3>
+    <p class="arch">room-mediated &middot; 3 cameras per room</p>
+    <div class="big">&#8377;106.8 L</div>
+    <div class="sm">3-year total, self-hosted &middot; &#8377;479 per student per year</div>
+    <p>Three fixed cameras per classroom, frames matched against the same enrolled signatures. No student action, no device, no code &mdash; and a cabling project across 18 campuses.</p>
+  </div>
+</div>
+
+<h2>Where they differ</h2>
+<div class="tw"><table>
+  <thead><tr><th style="width:20%">&nbsp;</th><th class="cA" style="width:29%">A &mdash; AttendSmart</th><th class="cB" style="width:29%">B &mdash; Camera</th><th style="width:22%">Who wins</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Face resolution</strong></td><td class="colA">104&ndash;156 px on a laptop webcam, ~300 px on a phone</td><td class="colB">24&ndash;40 px in a 9&ndash;10 m room</td><td class="wa">AttendSmart &mdash; 4&times; the facial information</td></tr>
+    <tr><td><strong>Proving presence</strong></td><td class="colA">A code, a device and an IP address &mdash; all defeatable. <strong>A live video-call proxy passed in the pilot</strong></td><td class="colB">A body has to occupy a seat</td><td class="wb">Camera &mdash; structural, not a patch</td></tr>
+    <tr><td><strong>Liveness</strong></td><td class="colA">Blink. Beats photos and screens; beaten by a live video call</td><td class="colB"><strong>None at all.</strong> A printed face or propped tablet has nothing to fail</td><td class="wa">AttendSmart</td></tr>
+    <tr><td><strong>Recall</strong></td><td class="colA">Fails often but <strong>retryable in session</strong> &mdash; blink again</td><td class="colB">89&ndash;93% per frame, <strong>no retry</strong>; multi-frame sampling helps</td><td class="wd">Draw &mdash; neither measured at NIAT</td></tr>
+    <tr><td><strong>Student effort</strong></td><td class="colA">Type a code in 10 s, blink twice &mdash; 30&times; a week</td><td class="colB">Sit down</td><td class="wb">Camera</td></tr>
+    <tr><td><strong>Instructor effort</strong></td><td class="colA">2&ndash;3 actions plus a review queue</td><td class="colB">None</td><td class="wb">Camera</td></tr>
+    <tr><td><strong>Student equipment</strong></td><td class="colA">Working, charged laptop present in the room</td><td class="colB">Nothing</td><td class="wb">Camera</td></tr>
+    <tr><td><strong>Record</strong></td><td class="colA">Present/absent at one moment, fully explainable</td><td class="colB">Arrival, duration, walk-out</td><td class="wb">Camera</td></tr>
+    <tr><td><strong>Adding the 19th university</strong></td><td class="colA">&#8377;0</td><td class="colB">&#8377;3.36 L and weeks of lead time</td><td class="wa">AttendSmart</td></tr>
+    <tr><td><strong>DPDP, under-18 students</strong></td><td class="colA">Discrete, student-initiated, ~15 MB of signatures</td><td class="colB">172&ndash;412 TB of video of minors; needs written clearance</td><td class="wa">AttendSmart</td></tr>
+    <tr><td><strong>Deployments at scale</strong></td><td class="colA">Large government programmes use a <em>different</em> capture model &mdash; teacher photographs the class</td><td class="colB">Pilots and reversals only. Nanjing stopped at 2 rooms; Skellefte&aring; was fined</td><td class="wd">Neither is proven at 106 rooms</td></tr>
+  </tbody>
+  <caption>Six criteria go to AttendSmart, six to the camera, and the rest are draws. The full brief scores all fifteen with the reasoning beside each.</caption>
+</table></div>
+
+<h2>What it costs</h2>
+<div class="tw"><table>
+  <thead><tr><th style="width:26%">3 years, 106 rooms</th><th class="cA num" style="width:20%">A &mdash; AttendSmart</th><th class="cB num" style="width:20%">B &mdash; Camera</th><th class="num" style="width:34%">Extra cost of choosing the camera</th></tr></thead>
+  <tbody>
+    <tr><td>Capital</td><td class="colA num">&#8377;4.20 &ndash; 14.70 L</td><td class="colB num">&#8377;67.09 L</td><td class="num">318 cameras, cabling, 18 NVRs, 72 drives</td></tr>
+    <tr><td>Running cost per year</td><td class="colA num">&#8377;4.48 &ndash; 4.54 L</td><td class="colB num">&#8377;13.22 L</td><td class="num">AMC, electricity, drives, software maintenance</td></tr>
+    <tr><td><strong>3-year total</strong></td><td class="colA num"><strong>&#8377;17.82 &ndash; 28.14 L</strong></td><td class="colB num"><strong>&#8377;106.75 L</strong></td><td class="num"><strong>+ &#8377;79 &ndash; 89 L</strong></td></tr>
+    <tr><td>Per student per year</td><td class="colA num">&#8377;80 &ndash; 126</td><td class="colB num">&#8377;479</td><td class="num">&mdash;</td></tr>
+    <tr><td>If security co-funds 30% of the estate</td><td class="colA num">&#8377;28.14 L</td><td class="colB num">&#8377;32.03 L</td><td class="num"><strong>+ &#8377;3.89 L</strong> &mdash; effectively the same money</td></tr>
+    <tr><td><strong>If recognition is rented from AWS Rekognition</strong></td><td class="colA num">&mdash;</td><td class="colB num"><strong>&#8377;207.03 L</strong><br>&#8377;2.07 crore</td><td class="num"><strong>+ &#8377;1.00 crore</strong> over self-hosting</td></tr>
+  </tbody>
+  <caption>Camera costs are three cameras per room &mdash; Sai&rsquo;s figure, and the pixel arithmetic agrees, since one frame reliably captures only ~30 faces. AttendSmart is a range because its cost depends on how the peak GPU load is served &mdash; <strong>paired configurations, not independent extremes</strong>: autoscaled cloud (&#8377;4.20 L capital, &#8377;4.54 L a year) or on-premise sized for the spike (&#8377;14.70 L capital, &#8377;4.48 L a year). Both columns now carry development, AMC on owned hardware, and software maintenance.</caption>
+</table></div>
+
+<div class="grid2">
+  <div class="note na"><span class="nt">Choose AttendSmart &mdash; you let go of location</span>
+    <ul>
+      <li><strong>Check in, then walk out</strong> is entirely undefended and costs zero effort.</li>
+      <li><strong>A friend relays the code</strong> and you are marked present from the canteen &mdash; or from home, since IP checks fall to a hotspot or VPN.</li>
+      <li>Every genuine fix is <strong>hardware in the room</strong>: beacons &#8377;2.12 L, or a head-count camera &#8377;8.71 L.</li>
+    </ul>
+  </div>
+  <div class="note nb"><span class="nt">Choose the camera &mdash; you let go of certainty about identity</span>
+    <ul>
+      <li><strong>No liveness check exists</strong> at 24&ndash;40 px, at any price. A propped photo passes.</li>
+      <li><strong>Look-alikes</strong> become genuinely hard to separate.</li>
+      <li><strong>7&ndash;11% of present students missed</strong> per frame, each with no retry and an appeal that lands on a human.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="note nr"><span class="nt">Three things to settle before any money is committed</span>
+  <p><strong>1. Video or snapshots?</strong> The design was described as capturing a video of the class. Sai&rsquo;s calculator models <strong>three still frames per period</strong> and says explicitly &ldquo;not continuous video&rdquo;. A 2-minute clip at 2 fps is 240 frames instead of 3 &mdash; roughly <strong>80&times; the Rekognition volume</strong>, on the order of &#8377;28 crore a year at list rates. This gap is larger than everything else in the comparison.</p>
+  <p><strong>2. Self-host the recognition.</strong> Renting it from AWS costs an extra <strong>&#8377;1 crore over three years</strong> and is 76% of the camera system&rsquo;s running cost. The same conclusion applies to AttendSmart&rsquo;s liveness check.</p>
+  <p><strong>3. Ask security and facilities what they would pay.</strong> At a 30% co-funding share the camera premium drops from &#8377;79 L to &#8377;4 L, and the decision stops being about money. One conversation, not a study.</p>
+</div>
+
+<div class="note nk"><span class="nt">Cheapest way to remove the remaining uncertainty</span>
+  <p>Four of the six decisive facts are unmeasured, and <strong>five of the six cost nothing</strong>: survey whether laptops are actually present and charged in live sessions; count how many students miss the 10-second window; instrument one period to find the real peak load; ask about co-funding; fix what is already known broken in AttendSmart. The sixth costs <strong>&#8377;9,350</strong> &mdash; buy one Prama varifocal camera and measure the actual pixels between a back-row student&rsquo;s eyes. That single measurement settles whether a room needs two, three or four cameras, a swing of more than &#8377;15 lakh across the estate.</p>
+</div>
+
+<a class="cta" href="#fullbrief" id="openBrief">
+  <span class="arrow">&rarr;</span>
+  <div class="t">Read the full brief in detail</div>
+  <div class="s">11 pages &mdash; all 15 scored criteria with reasoning &middot; the full proxy ledger of 15 fraud methods and which survive each option &middot; complete bills of materials and workings &middot; three shortlisted cameras compared with verified prices and links &middot; STQC certification landscape and who actually sells this &middot; DPDP analysis &middot; the adoption record &middot; reconciliation against Sai&rsquo;s cost calculator &middot; and what this comparison still does not know.</div>
+</a>
+
+</div>
+<div id="fullbrief">
+
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kick">Decision brief &middot; Attendance architecture &middot; NIAT Success Pod</p>
+  <h1>Device-mediated vs room-mediated attendance</h1>
+  <p class="dek">A side-by-side comparison of the two solutions under evaluation &mdash; scored on fifteen criteria, with every proxy method mapped, both cost models rebuilt, and the trade-offs of each stated in both directions.</p>
+  <dl class="meta">
+    <div><dt>Prepared by</dt><dd>Karthikeya, APM&#8209;1</dd></div>
+    <div><dt>Date</dt><dd>30 July 2026</dd></div>
+    <div><dt>Scale</dt><dd>106 rooms &middot; 18 universities</dd></div>
+    <div><dt>Students</dt><dd>7,429 &middot; ~70 per room</dd></div>
+    <div><dt>Verdict</dt><dd>Weighting-dependent</dd></div>
+  </dl>
+</header>
+
+<!-- 00 -->
+<section>
+  <span class="snum">00</span>
+  <h2>The answer</h2>
+  <p class="sub">Scored on fifteen criteria at equal weight the camera finishes two points ahead. The decision is not which system is better &mdash; it is which criteria NIAT decides matter most.</p>
+
+  <div class="mets">
+    <div class="met cd"><b>46 &ndash; 48</b><span>Equal-weight score. Camera ahead by two &mdash; effectively a dead heat</span></div>
+    <div class="met ca"><b>7</b><span>Criteria AttendSmart wins</span></div>
+    <div class="met cb"><b>6</b><span>Criteria the camera wins</span></div>
+    <div class="met cw"><b>+ &#8377;79&ndash;89 L</b><span>Extra cost of choosing the camera over three years, at 3 cameras per room with self-hosted recognition</span></div>
+  </div>
+
+  <div class="vs">
+    <div class="side A"><div class="tag">Contender A</div><h3>AttendSmart</h3>
+      <p class="arch">device-mediated &middot; laptop-first &middot; built</p>
+      <p>A QR and a code appear on the classroom screen. Students type the code <strong>within 10 seconds</strong> &mdash; the check-in, and the presence proof. The instructor clicks <em>Start attendance</em>, the camera opens on every checked-in device, and each student <strong>blinks twice</strong> against a 512-value enrolled signature. Designed around the mandatory college laptop; phone is a secondary path.</p></div>
+    <div class="side B"><div class="tag">Contender B</div><h3>Classroom camera</h3>
+      <p class="arch">room-mediated &middot; proposed, not built</p>
+      <p>Fixed cameras in each room recording continuously. Frames sampled across each period and matched against the same enrolled signatures. No student action, no device, no code.</p></div>
+  </div>
+
+  <div class="note nr">
+    <span class="nt">Where the balance sits</span>
+    <p><strong>AttendSmart carries more trade-offs, and they are structural.</strong> Code sharing, on-campus relay, IP and hotspot spoofing, check-in-then-leave, virtual-camera injection and device failure are six separate holes; only two close cheaply, and every genuine fix for the location problem is a piece of hardware in the room. <strong>The camera carries two: money, and a 7&ndash;11% miss rate.</strong> Both of those are manageable with process &mdash; a budget line and an appeals workflow.</p>
+    <p style="margin-top:6px"><strong>The sharpest way to hold the difference: AttendSmart knows <em>who</em>, not <em>where</em>. The camera knows <em>where</em>, not <em>whose</em>.</strong> AttendSmart wins on price, running cost, scaling, compliance and deployment risk &mdash; it costs &#8377;79&ndash;89 lakh less over three years and adds new universities for nothing. The camera wins on presence, needing nothing from the student, zero effort for student and instructor, a richer record, and dual-use asset value. They draw on recall and failure blast radius.</p>
+  </div>
+</section>
+
+<!-- 01 SPEC -->
+<section>
+  <span class="snum">01</span>
+  <h2>Spec sheet</h2>
+  <div class="tw"><table>
+    <thead><tr><th style="width:22%">&nbsp;</th><th class="cA" style="width:39%">A &mdash; AttendSmart (device)</th><th class="cB" style="width:39%">B &mdash; Classroom camera (room)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Status</strong></td><td class="colA">Built, in production, field-tested</td><td class="colB">Proposed. Never measured in an NIAT room</td></tr>
+      <tr><td><strong>Face captured at</strong></td><td class="colA">Laptop webcam ~55 cm; phone ~40 cm</td><td class="colB">Ceiling or wall camera, 2&ndash;12 m</td></tr>
+      <tr><td><strong>Inter-eye distance</strong></td><td class="colA num">~104 px (720p) &middot; ~156 px (1080p) &middot; ~300 px (phone)</td><td class="colB num">24&ndash;40 px in a 70-seat room</td></tr>
+      <tr><td><strong>Engine &amp; enrolment</strong></td><td class="colA">ArcFace 512-dim, self-hosted; bulk roster import</td><td class="colB">Identical &mdash; no advantage either way</td></tr>
+      <tr><td><strong>Student equipment</strong></td><td class="colA">College laptop &mdash; <strong>already mandatory</strong> &mdash; or phone. Charged, open, networked</td><td class="colB">None</td></tr>
+      <tr><td><strong>Student action</strong></td><td class="colA">Type code in 10 s, blink twice &mdash; 2 actions</td><td class="colB">None</td></tr>
+      <tr><td><strong>Instructor action</strong></td><td class="colA">Open session, Start attendance, clear queue &mdash; 2&ndash;3</td><td class="colB">None</td></tr>
+      <tr><td><strong>Liveness</strong></td><td class="colA">Blink. Defeats printed photos and screens. <strong>Defeated by a live video call</strong></td><td class="colB"><strong>None at all.</strong> A printed face or propped tablet has nothing to fail</td></tr>
+      <tr><td><strong>Presence proof</strong></td><td class="colA">10-second window + device + network &mdash; all proxies for a body</td><td class="colB">The body itself, in a seat</td></tr>
+      <tr><td><strong>Proxy it cannot stop</strong></td><td class="colA">A real student, really blinking, on their own device &mdash; but not in the room</td><td class="colB">A face that is not a live person; a look-alike at 24&ndash;40 px</td></tr>
+      <tr><td><strong>Record</strong></td><td class="colA">Binary present/absent at one moment, with a reason code</td><td class="colB">Continuous &mdash; arrival, duration, departure</td></tr>
+      <tr><td><strong>Measured recall</strong></td><td class="colA num">Poor <span class="pill pu">Permissive test build</span></td><td class="colB num">89&ndash;93% <span class="pill pe">Published, other sites</span></td></tr>
+      <tr><td><strong>Misidentification in test</strong></td><td class="colA num">0 in 64 attempts <span class="pill pu">Not meaningful &mdash; see 03</span></td><td class="colB num">No NIAT data</td></tr>
+      <tr><td><strong>Capital, 106 rooms</strong></td><td class="colA num">&#8377;4.20 &ndash; 14.70 L</td><td class="colB num">&#8377;67.09 L</td></tr>
+      <tr><td><strong>Running cost / year</strong></td><td class="colA num">&#8377;4.48 &ndash; 4.54 L</td><td class="colB num">&#8377;13.22 L</td></tr>
+      <tr><td><strong>3-year total</strong></td><td class="colA num">&#8377;17.82 &ndash; 28.14 L</td><td class="colB num">&#8377;106.75 L</td></tr>
+      <tr><td><strong>Per student / year</strong></td><td class="colA num">&#8377;80 &ndash; 126</td><td class="colB num">&#8377;479</td></tr>
+      <tr><td><strong>19th university (6 rooms)</strong></td><td class="colA num">&#8377;0</td><td class="colB num">&#8377;3.36 L</td></tr>
+      <tr><td><strong>Cost driver &middot; treatment</strong></td><td class="colA">Students &middot; operating expense, recurring</td><td class="colB">Rooms &middot; capital asset, 5&ndash;7 yr life, depreciable</td></tr>
+      <tr><td><strong>Dual-use value</strong></td><td class="colA">None &mdash; single-purpose software</td><td class="colB">Campus security, incident evidence, occupancy</td></tr>
+      <tr><td><strong>Storage</strong></td><td class="colA num">~15 MB signatures + 5.65 TB evidence frames over 3 yrs</td><td class="colB num">172 TB at 30-day retention<br>412 TB if recorded 24&times;7</td></tr>
+      <tr><td><strong>Deployment</strong></td><td class="colA">Software release, reversible</td><td class="colB">Cabling in 106 rooms across 18 campuses, largely irreversible</td></tr>
+      <tr><td><strong>DPDP, under-18 students</strong></td><td class="colA">Discrete, purpose-bound, student-initiated</td><td class="colB">Continuous video of minors &mdash; needs written clearance</td></tr>
+      <tr><td><strong>Deployments at scale</strong></td><td class="colA">Large government programmes exist but use a <strong>different capture model</strong> &mdash; teacher photographs the class, not student self-capture. See Section 06</td><td class="colB">Pilots and reversals only</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 02 SCORECARD -->
+<section>
+  <span class="snum">02</span>
+  <h2>Fifteen criteria, scored</h2>
+  <p class="sub">Each score is 1&ndash;5 and defended by the reason beside it. Six go each way, two are draws, and one &mdash; identity &mdash; is now qualified by the pilot's test conditions.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:21%">Criterion</th><th class="cA num" style="width:5%">A</th><th class="cB num" style="width:5%">B</th><th style="width:56%">Why</th><th style="width:13%">Round</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identity accuracy</strong></td><td class="colA num">3</td><td class="colB num">2</td><td>104&ndash;156 px between the eyes beats 24&ndash;40 px, and that physics advantage does not depend on the build. But this build has not demonstrated it &mdash; see Section 03.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Recall</strong></td><td class="colA num">3</td><td class="colB num">3</td><td>A fails recoverably and often (retry in session); B fails silently and less often (89&ndash;93% per frame, improved by multi-frame sampling). Neither measured at NIAT.</td><td class="wd">Draw</td></tr>
+      <tr><td><strong>Presence proof</strong></td><td class="colA num">1</td><td class="colB num">5</td><td>A's presence rests on a code, a device and an IP address &mdash; all defeatable. B requires a body in a seat, by construction.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Liveness / spoof resistance</strong></td><td class="colA num">2</td><td class="colB num">1</td><td>A's blink defeats photos and screens but was defeated by a live video call, and was not functioning in the pilot. B has no liveness check of any kind.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Independence from student kit</strong></td><td class="colA num">3</td><td class="colB num">5</td><td>The laptop mandate makes A's dependency an existing institutional fact, and two device paths make it robust. B needs nothing from anyone.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Student effort</strong></td><td class="colA num">3</td><td class="colB num">5</td><td>Two actions inside an unforgiving 10-second window, 30 times a week, versus sitting down. A leaves the student in control of the capture; B removes their participation entirely.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Instructor effort</strong></td><td class="colA num">3</td><td class="colB num">5</td><td>2&ndash;3 actions plus a review queue &mdash; and the pilot flagged 70% of an honest class, which is how faculty stop using a tool. B needs nothing; exceptions move to ops.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Richness of record</strong></td><td class="colA num">2</td><td class="colB num">5</td><td>A gives binary presence at one moment but a fully explainable reason code. B gives duration, late arrival and walk-out &mdash; though the most valuable extensions are the ones DPDP will not allow.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Purchase price</strong></td><td class="colA num">4</td><td class="colB num">1</td><td>&#8377;4.20&ndash;14.70 L against &#8377;67.09 L. A's capital is no longer near-zero once peak GPU is sized, but the gap remains large.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Running cost</strong></td><td class="colA num">5</td><td class="colB num">2</td><td>&#8377;4.48&ndash;4.54 L against &#8377;13.22 L. Electricity alone on the camera estate is &#8377;3.52 L a year, forever.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Scaling to new campuses</strong></td><td class="colA num">5</td><td class="colB num">2</td><td>&#8377;0 against &#8377;3.36 L per campus, with weeks of lead time. Unless universities fund classroom hardware themselves &mdash; worth asking.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Privacy / DPDP</strong></td><td class="colA num">4</td><td class="colB num">2</td><td>A discrete student-initiated check is materially easier to defend than continuous video of minors. Both need a DPIA regardless.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Deployment risk</strong></td><td class="colA num">4</td><td class="colB num">2</td><td>Software ships centrally and rolls back; cabling 106 rooms does not. But A's pilot lost a whole session to a silent data fault, so "just software" is not risk-free.</td><td class="wa">AttendSmart</td></tr>
+      <tr><td><strong>Dual-use &amp; asset life</strong></td><td class="colA num">1</td><td class="colB num">5</td><td>A does one job with no residual value. B is a 5&ndash;7 year asset that security and facilities may co-fund &mdash; the single biggest lever on the cost comparison.</td><td class="wb">Camera</td></tr>
+      <tr><td><strong>Failure blast radius</strong></td><td class="colA num">3</td><td class="colB num">3</td><td>A fails estate-wide and recovers in an hour; B fails one room and recovers in days. Neither is clearly safer.</td><td class="wd">Draw</td></tr>
+    </tbody>
+    <tfoot><tr><td><strong>Equal weight</strong></td><td class="colA num">46</td><td class="colB num">48</td><td colspan="2">Camera ahead by two &mdash; inside the margin of the scores themselves</td></tr></tfoot>
+  </table></div>
+
+  <div class="sc">
+    <div class="presets" role="group" aria-label="Weighting presets">
+      <button type="button" data-p="equal" aria-pressed="true">Equal</button>
+      <button type="button" data-p="cost" aria-pressed="false">Cost-led</button>
+      <button type="button" data-p="integrity" aria-pressed="false">Integrity-led</button>
+      <button type="button" data-p="inclusion" aria-pressed="false">Inclusion-led</button>
+      <button type="button" data-p="compliance" aria-pressed="false">Compliance-led</button>
+    </div>
+    <div id="crits" style="font-size:12px;margin-bottom:10px"></div>
+    <div class="rbar"><div class="ba" id="barA" style="width:48.9%">A 46</div><div class="bb" id="barB" style="width:51.1%">B 48</div></div>
+    <p class="rout" id="rout"><strong>Camera ahead by 2 points.</strong> Move the sliders &mdash; the scores are fixed by evidence, the weights are yours.</p>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:17%">Weighting</th><th class="cA num" style="width:9%">A</th><th class="cB num" style="width:9%">B</th><th style="width:19%">Winner</th><th>What this weighting believes</th></tr></thead>
+    <tbody>
+      <tr><td>Equal weight</td><td class="colA num">46</td><td class="colB num">48</td><td class="wb">Camera by 2</td><td>Every criterion matters the same. Effectively a tie.</td></tr>
+      <tr><td>Cost-led</td><td class="colA num">117</td><td class="colB num">77</td><td class="wa">AttendSmart by 40</td><td>Capital, running cost and scaling dominate. Budget is the binding constraint.</td></tr>
+      <tr><td>Integrity-led</td><td class="colA num">89</td><td class="colB num">108</td><td class="wb">Camera by 19</td><td>Stopping proxy attendance is why the project exists. The clearest result on the board.</td></tr>
+      <tr><td>Inclusion-led</td><td class="colA num">103</td><td class="colB num">129</td><td class="wb">Camera by 26</td><td>No student may be disadvantaged by a device failing; friction must be near zero.</td></tr>
+      <tr><td>Compliance-led</td><td class="colA num">89</td><td class="colB num">80</td><td class="wa">AttendSmart by 9</td><td>DPDP exposure on under-18 students and identity accuracy outrank everything else.</td></tr>
+    </tbody>
+    <caption>Three of five weightings favour the camera. <strong>The decision NIAT is making is which of these five sentences describes its priorities</strong> &mdash; not which system is better.</caption>
+  </table></div>
+</section>
+
+<!-- 03 PROXY -->
+<section>
+  <span class="snum">03</span>
+  <h2>The proxy ledger &mdash; what you have to let go</h2>
+  <p class="sub">Fifteen distinct fraud methods. Neither system stops all of them. <em>Hardened</em> means AttendSmart with device binding, network scoping, corrected proxy logic and screen-replay detection &mdash; all &#8377;0 in hardware.</p>
+
+  <div class="note nk">
+    <span class="nt">Rank the residuals by effort, not by cleverness</span>
+    <p>Attendance fraud is opportunistic. <strong>AttendSmart's survivors are the zero-effort, invisible ones</strong> &mdash; check in and walk out, or have a friend relay the code while you sit in the canteen. Those become normal within weeks. <strong>The camera's survivors need a photograph or a tablet propped on a desk in front of an instructor and sixty-nine classmates.</strong> Technically undefended, socially very hard. So the camera's residual list is longer on paper and smaller in practice; AttendSmart's is the reverse.</p>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:16%">Method</th><th style="width:28%">How it works</th><th class="cA" style="width:13%">A today</th><th class="cA" style="width:16%">A hardened</th><th class="cB" style="width:13%">B camera</th><th style="width:14%">A + B</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Check in, then leave</strong></td><td>Type the code, blink, walk out. Present for 30 seconds of a 50-minute class.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pu">Passes</span></td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Code relayed off-site</strong></td><td>Friend reads the code on a call; the absent student types it at home and blinks at their own webcam. Everything genuine except the location.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pe">Weak</span> &mdash; defeated by a hotspot, VPN or proxy through any device on campus</td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Relay to elsewhere on campus</strong></td><td>Same, but the student is in the canteen or corridor.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pu">Passes</span> &mdash; network scoping cannot tell one room from another</td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Live video-call relay</strong></td><td>A friend carries the absent student's laptop in and holds up a live call showing them blinking. <strong>Demonstrated in the pilot.</strong></td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pe">Partial</span> &mdash; device binding fails here because it <em>is</em> the right device; screen-replay detection closes it</td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Faking network location</strong></td><td>A hotspot bridged from inside, a VPN endpoint on campus, or a proxy through a classmate's machine. None requires skill.</td><td class="colA"><span class="pill pv">n/a</span></td><td class="colA"><span class="pill pu">Defeats the control</span></td><td class="colB"><span class="pill pv">n/a</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Code shared the instant it appears</strong></td><td>Screenshot or type it into a group chat. Ten seconds is enough for a waiting friend.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pe">Weak</span> &mdash; only as strong as the network check</td><td class="colB"><span class="pill pv">n/a</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Virtual-camera injection</strong></td><td>Software feeds synthetic video to the browser as if it were the webcam. <strong>Far easier on a laptop than a phone</strong> &mdash; a consequence of the laptop-first design.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pe">Partial</span></td><td class="colB"><span class="pill pv">n/a</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>One device, several students</strong></td><td>A laptop passed along a row.</td><td class="colA"><span class="pill pu">Undetected</span></td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colB"><span class="pill pv">n/a</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Friend logs in as you</strong></td><td>They have your laptop but not your face.</td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Printed photo in a seat</strong></td><td>A printout of the student's face on the desk.</td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colB"><span class="pill pu">Passes</span> &mdash; no liveness exists at classroom distance</td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Tablet looping a face</strong></td><td>A screen propped on the desk playing video.</td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colB"><span class="pill pu">Passes</span> &mdash; partly mitigable by temporal analysis</td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Look-alike in your seat</strong></td><td>A real person attends in your place.</td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colA"><span class="pill pv">Blocked</span></td><td class="colB"><span class="pill pu">Weak</span> &mdash; 24&ndash;40 px is where separation fails</td><td><span class="pill pv">Blocked</span></td></tr>
+      <tr><td><strong>Arriving late</strong></td><td>Missing the window entirely.</td><td class="colA"><span class="pill pu">Marked absent</span></td><td class="colA"><span class="pill pu">Marked absent</span></td><td class="colB"><span class="pill pv">Recorded</span></td><td><span class="pill pv">Recorded</span></td></tr>
+      <tr><td><strong>Enrolment poisoning</strong></td><td>A friend's photo submitted as yours at enrolment, so the signature on file is never yours.</td><td class="colA"><span class="pill pu">Passes</span></td><td class="colA"><span class="pill pu">Passes</span></td><td class="colB"><span class="pill pu">Passes</span></td><td><span class="pill pu">Passes</span></td></tr>
+      <tr><td><strong>Wrong section credited</strong></td><td>Present on campus, credited to a class you are not in.</td><td class="colA"><span class="pill pe">Partial</span></td><td class="colA"><span class="pill pe">Partial</span></td><td class="colB"><span class="pill pv">Blocked</span></td><td><span class="pill pv">Blocked</span></td></tr>
+    </tbody>
+    <caption><strong>Enrolment poisoning defeats every configuration equally</strong> &mdash; neither system verifies that the roster photograph is really the student. One supervised enrolment check, a BOA matching face to ID once, closes the only attack that survives everything else. Cheapest fix in this document.</caption>
+  </table></div>
+
+  <div class="grid2">
+    <div class="note na"><span class="nt">Choose AttendSmart &mdash; you let go of location</span>
+      <p><strong>You can prove <em>who</em>. You cannot prove <em>where</em>.</strong></p>
+      <ul>
+        <li><strong>Check-in-then-leave is entirely undefended</strong> and costs zero effort. Thirty seconds of a fifty-minute class.</li>
+        <li><strong>Network scoping is a speed bump, not a control.</strong> Campus Wi-Fi cannot tell this room from the canteen, and the boundary itself is porous.</li>
+        <li><strong>Virtual-camera injection</strong> is a laptop-specific risk a phone-first design would largely avoid.</li>
+      </ul>
+      <p style="margin-top:5px"><strong>Closable?</strong> Only by adding a room signal &mdash; periodic re-verification (friction), Bluetooth beacons (&#8377;2.12 L), or a head-count camera (&#8377;8.71 L). Every genuine fix is hardware in the room, which is the camera's argument arriving by another road.</p></div>
+
+    <div class="note nb"><span class="nt">Choose the camera &mdash; you let go of certainty about identity</span>
+      <p><strong>You can prove a <em>body was there</em>. You cannot prove <em>whose</em>.</strong></p>
+      <ul>
+        <li><strong>No liveness check of any kind.</strong> Not a configuration gap &mdash; no liveness technique works at 24&ndash;40 px, at any price.</li>
+        <li><strong>Look-alike separation degrades sharply.</strong> Four confusable pairs were found at 104&ndash;156 px; at 24&ndash;40 px that rises steeply.</li>
+        <li><strong>7&ndash;11% of present students missed per frame</strong> &mdash; up to 107,869 wrongly-absent marks a month, each with no retry.</li>
+      </ul>
+      <p style="margin-top:5px"><strong>Closable?</strong> Partly. Continuous recording lets temporal analysis catch a face that never moves. More cameras raise the pixel count. Neither reaches AttendSmart's identity confidence.</p></div>
+  </div>
+
+  <div class="note nr"><span class="nt">Before quoting "zero misidentifications"</span>
+    <p>The pilot recorded no student marked present as somebody else across 64 attempts. <strong>That does not demonstrate what it appears to.</strong> The build under test was <strong>deliberately permissive</strong> so face attendance would pass &mdash; and a loose threshold makes false <em>accepts</em> more likely, not less; the exhaustive comparison found four confusable pairs scoring above the threshold in use. The <strong>blink check was not functioning</strong> (frames captured with eyes open), so the liveness stage the architecture depends on was never exercised, and the one attack tried against it succeeded. And <strong>64 attempts is far too small</strong> &mdash; a system with a 1-in-200 error rate would be expected to show zero errors at that sample size.</p>
+    <p style="margin-top:5px"><strong>What still stands:</strong> the physics favours AttendSmart, and that does not depend on the build. <strong>What does not:</strong> any claim that this implementation has proven it. Both systems now stand on unvalidated implementations.</p>
+  </div>
+</section>
+
+<!-- 04 COST -->
+<section>
+  <span class="snum">04</span>
+  <h2>Cost, both sides</h2>
+  <p class="sub">Assumptions: 106 rooms, 18 universities, 7,429 students (~70/room), 6 periods &times; 22 days = 980,628 marks/month, 10 recording hours/day, 8&nbsp;MP H.265 at 4&nbsp;Mbps, &#8377;8/kWh, &#8377;88/USD. Hardware prices are GST-inclusive authorised-channel-partner prices, July 2026 <span class="pill pv">Verified</span>.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:30%">Line</th><th class="cA num" style="width:18%">A &mdash; AttendSmart</th><th class="cB num" style="width:18%">B &mdash; Camera</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Cameras, <strong>3 per room</strong></td><td class="colA num">&mdash;</td><td class="colB num">&#8377;28,050/room</td><td>Prama PT-NC147D3-WNRAM(D2) @ &#8377;9,350 <span class="pill pv">Verified 31 Jul</span>. Three per room is Sai&rsquo;s figure and the pixel arithmetic agrees &mdash; one frame reliably captures ~30 faces</td></tr>
+      <tr><td>Cabling, mounting, labour</td><td class="colA num">&mdash;</td><td class="colB num">&#8377;10,500/room</td><td>&#8377;3,500 per camera <span class="pill pe">Estimate</span></td></tr>
+      <tr><td>PoE switch &middot; NVR &middot; drives &middot; UPS</td><td class="colA num">&mdash;</td><td class="colB num">&#8377;17,482/room</td><td>18 campuses &times; (&#8377;11,000 + &#8377;11,950 + <strong>4&times;&#8377;17,750</strong> + &#8377;9,000) &divide; 106 rooms. <strong>Three cameras per room generates 9.5 TB per campus at 30-day retention, so two 4 TB drives no longer fit</strong> &mdash; four are needed</td></tr>
+      <tr><td><strong>Per classroom installed</strong></td><td class="colA num"><strong>&#8377;0</strong></td><td class="colB num"><strong>&#8377;56,032</strong></td><td>Estate falls to &#8377;45.79 L if two cameras prove sufficient, rises to &#8377;73.55 L with 8 MP cameras</td></tr>
+      <tr><td>106 classrooms</td><td class="colA num">&#8377;0</td><td class="colB num">&#8377;59,39,400</td><td></td></tr>
+      <tr><td>Inference GPU, sized for peak</td><td class="colA num">&#8377;0 <span style="color:var(--ink3)">(cloud)</span><br>&#8377;10,50,000 <span style="color:var(--ink3)">(on-prem)</span></td><td class="colB num">&#8377;3,50,000</td><td><strong>The biggest correction in this costing</strong> &mdash; see below</td></tr>
+      <tr><td>Development to close known gaps</td><td class="colA num">&#8377;4,20,000</td><td class="colB num">&#8377;4,20,000</td><td>7 dev-weeks fully loaded. Previously shown as &ldquo;internal, no cash line&rdquo; &mdash; that hid a real cost. Both options need integration work</td></tr>
+        <tr><td><strong>Total capital</strong></td><td class="colA num"><strong>&#8377;4,20,000 &ndash; 14,70,000</strong></td><td class="colB num"><strong>&#8377;67,09,400</strong></td><td></td></tr>
+      <tr><td>Hosting, database, worker</td><td class="colA num">&#8377;1,20,000</td><td class="colB num">&#8377;1,80,000</td><td>Includes central inference operations</td></tr>
+      <tr><td>Bandwidth / ingest</td><td class="colA num">&#8377;70,000</td><td class="colB num">&mdash;</td><td>A: ~471 GB/month arriving at up to 380 Mbps in a burst</td></tr>
+      <tr><td>GPU power or burst compute</td><td class="colA num">&#8377;60,000 &ndash; 1,50,000</td><td class="colB num">included</td><td>Lower on-premise, higher renting at peak</td></tr>
+      <tr><td>Evidence-frame storage</td><td class="colA num">&#8377;30,000</td><td class="colB num">included</td><td>A accumulates 5.65 TB over 3 years if 2 frames/check-in are kept</td></tr>
+      <tr><td>AMC on owned hardware</td><td class="colA num">&#8377;0 &ndash; 84,000</td><td class="colB num">&#8377;3,86,104</td><td>8% of owned hardware. &#8377;0 for A on cloud, &#8377;84,000 on the on-premise GPU. B is 8% of &#8377;48.26 L &mdash; install labour is not under AMC</td></tr>
+        <tr><td>Software maintenance</td><td class="colA num">&#8377;84,000</td><td class="colB num">&#8377;84,000</td><td>20% of build cost per year &mdash; patches, model drift, OS updates. Applies to both</td></tr>
+      <tr><td>Electricity, estate</td><td class="colA num">&mdash;</td><td class="colB num">&#8377;3,52,362</td><td>318 cameras &times; 11 W + 18 switches &times; 45 W + 18 NVRs &times; 40 W = 5.03 kW round the clock = 44,045 kWh at &#8377;8</td></tr>
+      <tr><td>Drive replacement provision</td><td class="colA num">&mdash;</td><td class="colB num">&#8377;3,19,500</td><td>3&ndash;5 year life on continuous write</td></tr>
+      <tr><td><strong>Total per year</strong></td><td class="colA num"><strong>&#8377;4,48,000 &ndash; 4,54,000</strong></td><td class="colB num"><strong>&#8377;13,21,966</strong></td><td></td></tr>
+      <tr><td colspan="4" style="background:#F0F4F7;font-weight:600;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)">Costs neither column pays but the system requires</td></tr>
+      <tr><td>Student laptops</td><td class="colA num">Already mandated</td><td class="colB num">&#8377;0</td><td>A college requirement pre-dating this system, not a new dependency it creates</td></tr>
+      <tr><td>Fallback when a device fails</td><td class="colA num">Not priced</td><td class="colB num">&#8377;0</td><td>At 2% unavailability, 149 students per session; at 5%, 371</td></tr>
+      <tr><td>Exception review of missed students</td><td class="colA num">Not priced</td><td class="colB num">Not priced</td><td>Material in both; larger in B on current recall figures</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tw keep"><table style="min-width:0">
+      <thead><tr><th style="width:17%">Horizon</th><th class="cA num" style="width:31%">A &mdash; AttendSmart</th><th class="cB num" style="width:26%">B &mdash; Camera</th><th class="num" style="width:30%">Extra cost of choosing<br>the camera</th></tr></thead>
+      <tbody>
+        <tr><td>Year 1</td><td class="colA num">&#8377;8.74&ndash;19.18 L</td><td class="colB num">&#8377;80.31 L</td><td class="num">+ &#8377;61&ndash;72 L</td></tr>
+        <tr><td>3 years</td><td class="colA num">&#8377;17.82&ndash;28.14 L</td><td class="colB num">&#8377;106.75 L</td><td class="num"><strong>+ &#8377;79&ndash;89 L</strong></td></tr>
+        <tr><td>5 years</td><td class="colA num">&#8377;26.90&ndash;37.10 L</td><td class="colB num">&#8377;133.19 L</td><td class="num">+ &#8377;96&ndash;106 L</td></tr>
+        <tr><td>7 years</td><td class="colA num">&#8377;35.98&ndash;46.06 L</td><td class="colB num">&#8377;159.63 L</td><td class="num">+ &#8377;114&ndash;124 L</td></tr>
+      </tbody>
+      <caption><strong>Per student per year over three years: &#8377;80&ndash;126 for AttendSmart, &#8377;479 for the camera.</strong><br><br>
+      AttendSmart is a range because its cost depends on how the peak GPU is served. <strong>The two ends are paired configurations, not independent extremes:</strong> the low end is autoscaled cloud (&#8377;4.20 L capital, &#8377;4.54 L a year); the high end is on-premise hardware sized for the spike (&#8377;14.70 L capital, &#8377;4.48 L a year). The last column is simply <strong>camera minus AttendSmart</strong>: the extra money NIAT spends by choosing the camera. <strong>Over three years that is &#8377;79&ndash;89 lakh.</strong> The gap keeps growing in absolute terms because the camera&rsquo;s running cost &mdash; AMC, electricity, drive replacement &mdash; never stops.</caption>
+    </table></div>
+
+  <div class="tw keep"><table style="min-width:0">
+      <thead><tr><th style="width:46%">Share of camera cost charged to attendance</th><th class="cB num" style="width:28%">B &mdash; Camera, 3-year total</th><th class="num" style="width:28%">Extra cost vs AttendSmart<br><span style="font-weight:400;text-transform:none;letter-spacing:0">(AttendSmart at its dearest, &#8377;28.14 L over 3 years)</span></th></tr></thead>
+      <tbody>
+        <tr><td>100% &mdash; attendance carries it all</td><td class="colB num">&#8377;106.75 L</td><td class="num">+ &#8377;78.61 L</td></tr>
+        <tr><td>70% &mdash; security takes a share</td><td class="colB num">&#8377;74.73 L</td><td class="num">+ &#8377;46.59 L</td></tr>
+        <tr><td>50% &mdash; split with security</td><td class="colB num">&#8377;53.38 L</td><td class="num">+ &#8377;25.24 L</td></tr>
+        <tr><td>30% &mdash; security is the primary buyer</td><td class="colB num">&#8377;32.03 L</td><td class="num"><strong>+ &#8377;3.89 L</strong></td></tr>
+      </tbody>
+      <caption><strong>The single biggest lever in the whole comparison.</strong> The camera estate can serve campus security and incident evidence as well as attendance. Whatever share those budgets absorb comes off attendance&rsquo;s bill.<br><br>
+      <strong>At a 30% allocation the camera costs only &#8377;3.9 lakh more than AttendSmart over three years</strong> &mdash; effectively the same money, at which point the decision turns purely on integrity and compliance. Ask facilities and campus security what they would independently pay for classroom coverage across 18 universities. One conversation, not a study.</caption>
+    </table></div>
+
+  <h3>The compute bill &mdash; the line that was missing</h3>
+  <p style="font-size:13px">AttendSmart's inference cost is driven by <strong>peak concurrency</strong>, not monthly volume: the architecture makes every student blink at the same moment. <strong>The camera does not have this problem</strong> &mdash; its sampling spreads across the period, so the same monthly volume needs a fraction of the peak capacity.</p>
+
+  <div class="grid2">
+    <div class="tw" style="margin:0"><table style="min-width:0">
+      <thead><tr><th>Peak scenario</th><th class="num">Frames/s</th><th class="num">GPUs</th><th class="num">Ingest</th></tr></thead>
+      <tbody>
+        <tr><td>80% of cohort inside 60 s</td><td class="num">594</td><td class="num">4.0</td><td class="num">380 Mbps</td></tr>
+        <tr><td>80% inside 120 s</td><td class="num">297</td><td class="num">2.0</td><td class="num">190 Mbps</td></tr>
+        <tr><td>50% inside 180 s (staggered)</td><td class="num">124</td><td class="num">0.8</td><td class="num">79 Mbps</td></tr>
+      </tbody>
+      <caption>Six frames per check-in to capture two blinks, 150 fps per GPU for detect-plus-embed.</caption>
+    </table></div>
+
+    <div class="tw" style="margin:0"><table style="min-width:0">
+      <thead><tr><th>Architecture</th><th class="num">Capital</th><th class="num">3-yr</th><th class="num">/student/yr</th></tr></thead>
+      <tbody>
+        <tr><td>On-premise, sized for peak</td><td class="num">&#8377;14.70 L</td><td class="num">&#8377;28.14 L</td><td class="num">&#8377;126</td></tr>
+        <tr><td>Cloud GPU, autoscaled</td><td class="num">&#8377;4.20 L</td><td class="num">&#8377;17.82 L</td><td class="num">&#8377;80</td></tr>
+        <tr><td>Single node <span class="pill pu">Under-provisioned</span></td><td class="num">&#8377;5.70 L</td><td class="num">&#8377;13.86 L</td><td class="num">&#8377;62</td></tr>
+      </tbody>
+      <caption>The third row serves the monthly average, not the peak &mdash; achievable only if periods are genuinely staggered across the 18 campuses. That is a scheduling question worth checking: it is the difference between &#8377;13.86 L and &#8377;28.14 L.</caption>
+    </table></div>
+  </div>
+
+  <div class="note nk"><span class="nt">Reconciling the "under $1 per student" estimate</span>
+    <p>The internal estimate and this report are measuring different things and both are right. <strong>Self-hosted, they are close:</strong> &#8377;80&ndash;126 per student per year is $0.91&ndash;1.43 once development and maintenance are counted &mdash; so the under-a-dollar figure holds only at the cloud-autoscaled end, and only for AWS run-cost as his sheet defines it. <strong>The &#8377;1.43 crore figure is not what we would pay</strong> &mdash; it is what a commercial per-check liveness API would charge, and appears here only as the option to reject. The arithmetic, so it can be checked: AWS Face Liveness at <span class="mono">$0.015 &times; 1,320 checks = $19.80</span> per student per year at the headline rate, or <span class="mono">$21.82</span> once the tiered volume discount is applied across the estate. Landing under $1 while checking every session needs <span class="mono">$0.00076</span> per check &mdash; twenty times cheaper than AWS &mdash; or self-hosting, which is what both estimates assume. <strong>Liveness was never the deciding cost. Peak GPU is, and neither estimate had priced it.</strong></p>
+  </div>
+</section>
+
+<h3>Reconciled against Sai&rsquo;s cost calculator</h3>
+  <p style="font-size:13px">Sai&rsquo;s <span class="mono">attendance_cost_calculator_final.html</span> models the pipeline <strong>CCTV &rarr; NVR &rarr; Site-to-Site VPN &rarr; EC2 frame extraction &rarr; S3 &rarr; AWS Rekognition &rarr; attendance engine</strong>. Run at NIAT&rsquo;s scale it produces <strong>$3,446 a month</strong>. His figure and this brief&rsquo;s were never in conflict &mdash; they measure different things.</p>
+
+  <div class="tw keep"><table style="min-width:0">
+    <thead><tr><th style="width:32%">Why the two numbers differed</th><th style="width:34%">Sai&rsquo;s calculator</th><th style="width:34%">This brief</th></tr></thead>
+    <tbody>
+      <tr><td><strong>The unit</strong></td><td><strong>$0.46 per student per month</strong> &mdash; the &ldquo;under $1&rdquo; figure. The same number is <strong>$5.57 per student per year</strong></td><td>Quoted per student per year throughout</td></tr>
+      <tr><td><strong>Scope</strong></td><td><strong>AWS run-cost only.</strong> His own labels mark cameras, NVR, attendance database and student/faculty apps as <em>excluded</em>; attendance service and engine are a flat $8/month placeholder</td><td>Whole system &mdash; hardware, install, AMC, electricity, drives</td></tr>
+      <tr><td><strong>Recognition</strong></td><td><strong>AWS Rekognition</strong> &mdash; DetectFaces then SearchFacesByImage per detected face</td><td>Self-hosted ArcFace</td></tr>
+      <tr><td><strong>Cameras per classroom</strong></td><td><strong>3</strong>, because &ldquo;a single frame may only reliably capture ~30 faces&rdquo;</td><td>Was 2. <strong>Corrected to 3</strong> &mdash; his reasoning and the pixel arithmetic in Section 01 reach the same place independently</td></tr>
+      <tr><td><strong>Capture</strong></td><td><strong>3 still snapshots per period per camera</strong> &mdash; explicitly &ldquo;not continuous video&rdquo;</td><td>See the flag below</td></tr>
+    </tbody>
+    <caption>Neither estimate was wrong. Put together they give the first complete picture of what the camera route actually costs.</caption>
+  </table></div>
+
+  <div class="tw keep"><table style="min-width:0">
+    <thead><tr><th style="width:34%">Camera route, 3 cameras per room, complete</th><th class="num" style="width:22%">Capital</th><th class="num" style="width:22%">Per year</th><th class="num" style="width:22%">3-year</th></tr></thead>
+    <tbody>
+      <tr><td>Hardware: 318 cameras, install, 18 NVRs, switches, 72 drives, UPS</td><td class="num">&#8377;59.39 L</td><td class="num">&#8377;10.58 L</td><td class="num">&#8377;91.13 L</td></tr>
+      <tr><td><strong>A &mdash; with AWS Rekognition</strong> (Sai&rsquo;s design)</td><td class="num">&#8377;63.59 L</td><td class="num">&#8377;47.81 L</td><td class="num"><strong>&#8377;207.03 L</strong><br>&#8377;2.07 crore</td></tr>
+      <tr><td><strong>B &mdash; with self-hosted recognition</strong></td><td class="num">&#8377;67.09 L</td><td class="num">&#8377;13.22 L</td><td class="num"><strong>&#8377;106.75 L</strong></td></tr>
+    </tbody>
+    <tfoot><tr><td><strong>Cost of choosing Rekognition over self-hosting</strong></td><td class="num">&mdash;</td><td class="num">+ &#8377;34.59 L</td><td class="num"><strong>+ &#8377;1.00 crore</strong></td></tr></tfoot>
+    <caption>Per student per year: <strong>&#8377;929 on Rekognition, &#8377;479 self-hosted.</strong> Rekognition is <strong>93&ndash;97% of the AWS bill</strong> in Sai&rsquo;s own model and <strong>76% of the camera system&rsquo;s entire running cost</strong>. This is the same conclusion the liveness analysis reached for AttendSmart, arriving from the other direction: <strong>the recognition engine should not be rented per call.</strong></caption>
+  </table></div>
+
+  <div class="note nr"><span class="nt">Raise with Sai before anything is committed</span>
+    <p><strong>1. Video or snapshots?</strong> The design was described as capturing <em>a video of the class with everyone present</em>. The calculator models <strong>three still frames per period per camera</strong> and states plainly that a snapshot is &ldquo;a single still frame pulled from the camera feed at one moment &mdash; not continuous video&rdquo;. These are not the same product. A 2-minute clip sampled at 2 fps is <strong>240 frames per camera per session instead of 3</strong> &mdash; roughly <strong>80&times; the Rekognition volume</strong>, which at list rates is on the order of <strong>&#8377;28 crore a year</strong>. The gap between the two readings is larger than the entire rest of this brief.</p>
+    <p><strong>2. Self-host the matching.</strong> &#8377;1 crore over three years is the price of the convenience. The same ArcFace pipeline on an owned GPU has no per-call fee, and the enrolled signatures are already ours.</p>
+    <p><strong>3. VPN topology is still open in the thread.</strong> One shared tunnel is &#8377;0.39 L a year; eighteen per-campus connections are &#8377;6.94 L. Revanth reports the Pune campus already runs over VGW with no additional transfer charge, which suggests the cheaper answer is available &mdash; worth closing before it is designed the other way.</p>
+    <p><strong>4. The hardware still has to be paid for.</strong> His calculator deliberately excludes cameras and NVRs. At 3 cameras per room, with the four drives per campus that 9.5 TB of monthly footage actually needs, that is <strong>&#8377;59.4 lakh of capital</strong> that no line in the AWS estimate covers.</p>
+  </div>
+
+  <h3>Two hybrid configurations</h3>
+  <div class="grid2">
+    <div class="note na"><span class="nt">Hybrid 1 &mdash; device-primary + presence cross-check</span>
+      <p>AttendSmart hardened, plus <strong>one 2&nbsp;MP fixed dome per room used only to count occupied seats</strong> &mdash; no face template extracted from room video, no video retained. If AttendSmart records 38 present and the room holds 31 bodies, the session is flagged.</p>
+      <p style="margin-top:5px"><strong>Cost:</strong> &#8377;8,218/room = <strong>&#8377;8.71 L capital</strong>, &#8377;1.22 L/yr. Three-year total with AttendSmart: <strong>&#8377;23.5&ndash;31.3 L</strong> (&#8377;105&ndash;140 per student/yr).</p>
+      <p style="margin-top:5px"><strong>Wins:</strong> closes the location gap with an independent physical signal at a quarter of the camera's cost. Head-counting needs DORI Detection (25 PPM), not Identification (250), so none of the pixel problem applies. Smallest privacy footprint of any configuration. <strong>Loses:</strong> keeps the device dependency, the 10-second window and instructor involvement; gains no duration data or dual-use value; two systems to maintain.</p></div>
+
+    <div class="note nb"><span class="nt">Hybrid 2 &mdash; camera-primary + device fallback</span>
+      <p>The full camera estate as the default, with AttendSmart retained as the <strong>exception route</strong> for students the camera could not resolve &mdash; occluded, turned away, or badly seated.</p>
+      <p style="margin-top:5px"><strong>Cost:</strong> both estates. <strong>&#8377;98.4&ndash;106.2 L over three years</strong>, falling to roughly &#8377;55&ndash;75 L with a 30&ndash;50% dual-use allocation.</p>
+      <p style="margin-top:5px"><strong>Wins:</strong> the highest achievable recall of any configuration, because the two failure modes are genuinely uncorrelated &mdash; occlusion does not affect a webcam, a dead laptop does not affect a camera. Zero student effort for the ~90% the camera resolves, and the 10-second window stops being a single point of failure. <strong>Loses:</strong> most expensive, largest privacy footprint, two systems to reconcile, hardest compliance position, and the most complex student experience to explain.</p></div>
+  </div>
+  <p style="font-size:12px;color:var(--ink2)"><strong>On hybrids generally:</strong> both buy real robustness and both cost more than the single system they extend. Neither should be chosen before measurements 1&ndash;3 in Section 07 exist &mdash; a hybrid designed around an unmeasured failure rate is a guess with a bigger budget.</p>
+
+<!-- 05 CAMERA HARDWARE -->
+<section>
+  <span class="snum">05</span>
+  <h2>If the camera is chosen: the three hardware options</h2>
+  <p class="sub">Real model numbers, GST-inclusive channel-partner prices, links verified 31 July 2026. <strong>Focal length matters more than resolution</strong> &mdash; the same pixels spread across a wider cone put every face below the usable floor. <strong>Prices moved 17% in the two days of checking</strong>, so treat all of them as indicative and get a written quote.</p>
+
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:19%">Specification</th>
+      <th class="cA" style="width:27%"><div style="text-align:center;margin-bottom:3px"><svg viewBox="0 0 60 34" style="height:20px" aria-label="dome camera"><ellipse cx="30" cy="28" rx="20" ry="3" fill="#DAE2E9"/><path d="M13 25a17 17 0 0 1 34 0z" fill="#F0F4F7" stroke="#7A8996" stroke-width="1.4"/><rect x="11" y="23" width="38" height="4" rx="2" fill="#DAE2E9" stroke="#7A8996" stroke-width="1"/><circle cx="30" cy="16" r="8" fill="#14212C"/><circle cx="30" cy="16" r="5" fill="#0E7C86"/></svg></div><div style="font-size:10px;letter-spacing:.06em">1 &middot; Prama 4 MP dome</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:.8">PT-NC147D3-WNRAM(D2)</div><div style="font-size:10.5px;letter-spacing:0;text-transform:none">&#8377;9,350</div></th>
+      <th class="cA" style="width:27%"><div style="text-align:center;margin-bottom:3px"><svg viewBox="0 0 60 34" style="height:20px" aria-label="bullet camera"><rect x="8" y="11" width="36" height="14" rx="7" fill="#F0F4F7" stroke="#7A8996" stroke-width="1.4"/><circle cx="42" cy="18" r="6.5" fill="#14212C"/><circle cx="42" cy="18" r="4" fill="#0E7C86"/><rect x="14" y="7" width="18" height="3.5" rx="1.7" fill="#DAE2E9" stroke="#7A8996" stroke-width=".8"/><path d="M22 25v5h-5v3h14v-3h-5v-5z" fill="#DAE2E9" stroke="#7A8996" stroke-width="1"/></svg></div><div style="font-size:10px;letter-spacing:.06em">2 &middot; Prama 8 MP bullet</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:.8">PT-NC386P3-WNRAM(D2)</div><div style="font-size:10.5px;letter-spacing:0;text-transform:none">Quote</div></th>
+      <th class="cB" style="width:27%"><div style="text-align:center;margin-bottom:3px"><svg viewBox="0 0 60 34" style="height:20px" aria-label="long throw bullet camera"><rect x="4" y="11" width="42" height="14" rx="7" fill="#EFF4F7" stroke="#7A8996" stroke-width="1.4"/><circle cx="44" cy="18" r="7" fill="#14212C"/><circle cx="44" cy="18" r="4.3" fill="#4B3F9E"/><rect x="10" y="7" width="20" height="3.5" rx="1.7" fill="#DAE2E9" stroke="#7A8996" stroke-width=".8"/><path d="M20 25v5h-5v3h14v-3h-5v-5z" fill="#DAE2E9" stroke="#7A8996" stroke-width="1"/></svg></div><div style="font-size:10px;letter-spacing:.06em">3 &middot; CP Plus 8 MP long-throw</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:none;letter-spacing:0;font-weight:400;opacity:.8">CP-UNC-TG81ZL12-VMD</div><div style="font-size:10.5px;letter-spacing:0;text-transform:none">Quote</div></th>
+    </tr></thead>
+    <tbody>
+      <tr><td><strong>Price, GST included</strong></td>
+        <td><strong>&#8377;9,350</strong> <span class="pill pv">Verified 31 Jul</span><br>other sellers &#8377;7,100&ndash;7,560</td>
+        <td><strong>&#8377;13,000&ndash;16,000</strong> <span class="pill pe">Quote required</span></td>
+        <td><strong>Project model</strong> <span class="pill pe">Quote required</span> &mdash; expect well above the others</td></tr>
+      <tr><td><strong>Resolution &middot; sensor</strong></td><td>4 MP &middot; 2560&times;1440 &middot; 1/3&Prime;</td><td>8 MP &middot; 3840&times;2160</td><td>8 MP &middot; 3840&times;2160 @25/30 fps &middot; <strong>1/1.8&Prime;</strong> &mdash; largest sensor here</td></tr>
+      <tr><td><strong>Lens</strong></td><td>2.8&ndash;12 mm motorised</td><td>2.7&ndash;13.5 mm motorised</td><td><strong>8&ndash;32 mm motorised</strong> &mdash; over double the reach of either Prama</td></tr>
+      <tr><td><strong>Field of view, horizontal</strong></td><td>96.7&deg; &ndash; 29.7&deg;</td><td>Wide to narrow</td><td><strong>40&deg; &ndash; 15&deg;</strong> <span class="pill pv">Published</span></td></tr>
+      <tr><td><strong>Inter-eye px at 9 m</strong></td><td>~40 px at 12 mm</td><td>~40&ndash;45 px at 13.5 mm</td><td><strong>37 px wide &middot; 61 px mid &middot; 102 px full telephoto</strong> &mdash; clears the ISO 90 px minimum only at the telephoto end</td></tr>
+      <tr><td><strong>Width covered at 9 m</strong></td><td>~5 m at 12 mm</td><td>~5 m</td><td>6.55 m wide &middot; 3.99 m mid &middot; 2.37 m telephoto</td></tr>
+      <tr><td><strong>Close focus distance</strong></td><td>Not stated</td><td>Not stated</td><td><strong>2.5 m wide, 6 m at telephoto</strong> &mdash; at full zoom it cannot focus on anything nearer than 6 m, so front rows go soft <span class="pill pu">Deployment constraint</span></td></tr>
+      <tr><td><strong>IR / illumination</strong></td><td>30 m smart dual light, 120 dB WDR</td><td>60 m smart dual light &mdash; <strong>stays in colour</strong></td><td><strong>120 m IR</strong>, 120 dB WDR, EIS, defog</td></tr>
+      <tr><td><strong>Codec &middot; standards</strong></td><td>H.265+ / H.264+, ONVIF, PoE 802.3af, IP67, IK08, mic, microSD 512 GB</td><td>H.265+, ONVIF, RTSP, PoE, IP67</td><td>Instastream / H.265 / Smart H.264+, IP67, <strong>IK10</strong>, ePoE + PoE+, microSD</td></tr>
+      <tr><td><strong>On-board analytics</strong></td><td>Human / vehicle classification</td><td>Human / vehicle classification</td><td><strong>Deep-learning face recognition, people counting, perimeter</strong> &mdash; the only one stating face recognition on its datasheet</td></tr>
+      <tr><td><strong>Network port</strong></td><td>RJ-45 <strong>10/100 Mbps</strong></td><td>RJ-45, verify speed at 4K</td><td>ePoE / PoE+</td></tr>
+      <tr><td><strong>Housing</strong></td><td>IP67 / IK08 metal dome &mdash; discreet</td><td>Bullet &mdash; conspicuous in a classroom</td><td>Bullet, IK10 &mdash; conspicuous but vandal-proof</td></tr>
+      <tr><td><strong>Best for</strong></td><td><strong>The test unit.</strong> Cheapest verified motorised zoom. Buy one and measure before committing to anything</td><td><strong>Colour at night.</strong> Dual light avoids IR monochrome, which flattens facial texture and measurably hurts recognition. Middle option on reach and price</td><td><strong>The only one that reaches ISO-grade pixels.</strong> At full telephoto it puts <strong>102 px</strong> between a back-row student&rsquo;s eyes at 9 m &mdash; above the ISO 90 px minimum, which nothing else here manages. CP Plus also has the widest dealer network in India, which matters across 18 campuses</td></tr>
+      <tr><td><strong>Watch out</strong></td><td>10/100 NIC and a 1/3&Prime; sensor. At 12 mm it tops out near 40 px at 9 m &mdash; below the ISO minimum. Fine as a measuring instrument, marginal as the deployed answer</td><td>Bullet housing is conspicuous. The 6 MP dome sibling <span class="mono">PT-NC367P1-WNRAM(D2)</span> carries the same lens in a discreet housing &mdash; quote both. Prama was formerly the Hikvision India JV; raise that yourself with certification facts attached</td><td><strong>Narrow cone, and a 6 m blind spot.</strong> At the telephoto end each camera covers 2.37 m at 9 m, so a 10 m back row needs <strong>five</strong>; at mid-zoom it needs three, at 61 px. And the 6 m close-focus limit at full zoom means a telephoto camera cannot serve the front rows at all &mdash; you would need separate wide cameras for them. No public price. <strong>Get it quoted, but the camera count is higher than it first looks.</strong></td></tr>
+    </tbody>
+    <caption><strong>Also required, priced into Section 04:</strong> 16-port Giga PoE switch &#8377;11,000 &middot; 16-ch 4K 2-SATA NVR &#8377;11,950 &middot; WD Purple 4 TB &#8377;17,750 each &middot; CAT6 305 m &#8377;9,950&ndash;11,500. For Hybrid 1's head-count-only camera: <strong>CP-UNC-DA21L3C-Q, 2 MP fixed dome, &#8377;2,850</strong> <span class="pill pv">Verified</span> &mdash; counting heads needs DORI Detection at 25 PPM, not Identification at 250, so a cheap wide fixed lens is exactly right there. <strong>Matrix SATATYA CIDR80ML12CWP</strong> is retained as a fourth candidate but deliberately unpriced: Matrix publishes no public price, so any figure would be invention. Request a quote alongside the other two.</caption>
+  </table></div>
+
+<h3>Who is actually certified &mdash; and who is not</h3>
+  <div class="note nr"><span class="nt">STQC certifies the camera. There is no certification for attendance software.</span>
+    <p>MeitY notified the <strong>Essential Requirements for Security of CCTV Cameras (ER:01)</strong> by Gazette in April 2024 under the Compulsory Registration Order. Network cameras must comply from <strong>9 April 2025</strong>, with full enforcement from <strong>1 April 2026</strong> &mdash; non-conforming cameras cannot legally be sold. Two routes test the same six requirements: <strong>BIS ER-01 registration</strong> or <strong>STQC IoTSCS</strong>. The six: no default passwords, encrypted video over TLS/HTTPS, secure boot with signed firmware, disabled debug and test ports, supply-chain transparency on chipset origin, and a published vulnerability disclosure policy. Government procurement has required it since 6 June 2024. The practical effect is that Hikvision, Dahua and other non-compliant brands are out of the Indian market.</p>
+    <p style="margin-top:5px"><strong>What it does not cover:</strong> certification is a cybersecurity bar for the device. <strong>It says nothing about whether a face-attendance system is accurate.</strong> Every classroom attendance product is a certified camera plus an uncertified software layer.</p>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:19%">Who</th><th style="width:20%">Certified for</th><th style="width:24%">Classroom attendance?</th><th style="width:37%">Evidence</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Prama</strong>, <strong>CP Plus</strong> (Aditya Infotech), <strong>Sparsh CCTV</strong> (Samriddhi), <strong>Matrix Comsec</strong>, <strong>Honeywell India</strong>, <strong>Vicon</strong>, <strong>EQUUS</strong></td><td>Network cameras, on STQC&rsquo;s registry <span class="pill pv">Verified</span></td><td>Cameras only, with one partial exception below</td><td>Listed on STQC&rsquo;s registry for network cameras. HiFocus, Qubo and Adiance also claim certification. <strong>All three cameras shortlisted above are from certified makers.</strong></td></tr>
+      <tr><td><strong>Matrix Comsec &mdash; COSEC</strong></td><td>Cameras certified; COSEC is a separate line</td><td><strong>Face attendance, but not for classrooms</strong></td><td>COSEC ARGO FACE and COGNIFACE are wall-mounted door terminals at &#8377;27,500&ndash;65,500 each, specified at <strong>a maximum of 4 faces per frame</strong>. Built for a doorway, not a 70-seat room. <span class="pill pe">Wrong form factor</span></td></tr>
+      <tr><td><strong>Vizenta AI</strong>, <strong>RealCoderz SkillaTracker</strong>, <strong>FaceIT Systems</strong>, <strong>Nialabs</strong>, <strong>Vidyalaya</strong>, <strong>Face-Six FA6 Class</strong></td><td><strong>Nothing &mdash; no scheme exists for attendance software</strong></td><td>Yes &mdash; software overlays on whatever cameras you already have</td><td>All market classroom attendance on existing CCTV. <strong>None publishes a named institutional reference at scale, a recall figure, or an independent accuracy test.</strong> Claims of &ldquo;99.5%&rdquo; and &ldquo;100% accuracy&rdquo; appear on marketing pages with no methodology. <span class="pill pu">Unverified vendor claims</span></td></tr>
+      <tr><td>Small integrators<br><span style="color:var(--ink3)">e.g. Altra Waves, Coimbatore</span></td><td>Not applicable</td><td>Yes, as a packaged install</td><td>Listed publicly at <strong>&#8377;75,000</strong> for a CCTV-based AI student attendance package &mdash; a real listed price, but a single-reseller listing with no stated scope <span class="pill pe">Indicative only</span></td></tr>
+    </tbody>
+    <caption>Compiled 31 July 2026 from STQC&rsquo;s registry as reported by two independent compilers, MeitY&rsquo;s gazette notification, and the vendors&rsquo; own product pages. <strong>No customer reference in this table could be independently confirmed</strong>, and none is presented as one.</caption>
+  </table></div>
+
+  <div class="note nk"><span class="nt">What this means for procurement</span>
+    <p><strong>There is no certified end-to-end classroom attendance product in India.</strong> The certified vendors sell doorway terminals; the classroom vendors sell software that is not certified and publishes no accuracy evidence. Whatever is chosen, NIAT would be integrating a certified camera with an unproven recognition layer &mdash; which is an argument for keeping recognition in-house, where the threshold, the audit trail and the failure behaviour are ours to control.</p>
+    <p><strong>Ask any attendance vendor for exactly three things:</strong> a named institution running it at 50+ classrooms, the measured recall on that deployment, and who carries the DPDP controller obligation. In this search no vendor published any of the three.</p>
+  </div>
+
+  <h3>Where to open each one &mdash; all links checked 31 July 2026</h3>
+  <div class="tw"><table class="lnk">
+    <thead><tr><th style="width:26%">Camera</th><th style="width:74%">Pages to open</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>1 &middot; Prama 4 MP varifocal dome</strong><br><span class="mono" style="font-size:.92em;color:var(--ink3)">PT-NC147D3-WNRAM(D2)</span><br><strong>&#8377;9,350</strong></td>
+        <td>
+          <div><span style="color:var(--ink3)">Manufacturer datasheet &mdash;</span> <a href="https://www.pramaindia.in/product/pt-nc147d3-wnramd2/" target="_blank" rel="noopener">www.pramaindia.in/product/pt-nc147d3-wnramd2/</a></div>
+          <div><span style="color:var(--ink3)">Dealer listing, the &#8377;9,350 price &mdash;</span> <a href="https://www.nicedealonline.com/product-page/stqc-prama-ip-4mp-hybrid-varifocal-dome-cctv-pt-nc147d3-wnram-d2" target="_blank" rel="noopener">www.nicedealonline.com/product-page/stqc-prama-ip-4mp-hybrid-varifocal-dome-cctv-pt-nc147d3-wnram-d2</a></div>
+          <div><span style="color:var(--ink3)">Cross-check the price &mdash;</span> <a href="https://www.indiamart.com/proddetail/prama-pt-nc147d3-wnram-d2-2857591057697.html" target="_blank" rel="noopener">indiamart.com &#8377;7,560</a> &middot; <a href="https://www.amazon.in/PT-NC147D3-WNRAM-D2-Varifocal-Included-Stickers/dp/B0FPXKXLP1" target="_blank" rel="noopener">amazon.in/dp/B0FPXKXLP1</a> &middot; <a href="https://aliftechsecure.in/product/prama-4mp-dual-light-varifocal-dome-network-camera-pt-nc147d3-wnramd2-stqc-approved/" target="_blank" rel="noopener">aliftechsecure.in</a></div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>2 &middot; Prama 8 MP Aisense bullet</strong><br><span class="mono" style="font-size:.92em;color:var(--ink3)">PT-NC386P3-WNRAM(D2)</span><br><span class="pill pe">Quote required</span></td>
+        <td>
+          <div><span style="color:var(--ink3)">Discreet dome sibling, same 2.7&ndash;13.5 mm lens, <span class="mono">PT-NC367P1-WNRAM(D2)</span> &mdash;</span> <a href="https://www.pramaindia.in/product/pt-nc367p1-wnramd2/" target="_blank" rel="noopener">www.pramaindia.in/product/pt-nc367p1-wnramd2/</a> <span class="pill pv">Confirmed live</span></div>
+          <div><span style="color:var(--ink3)">Pro Series index &mdash;</span> <a href="https://www.pramaindia.in/product-category/network-camera/pro-series/" target="_blank" rel="noopener">www.pramaindia.in/product-category/network-camera/pro-series/</a> <span class="pill pv">Confirmed live</span></div>
+          <div><span style="color:var(--ink3)">The 8 MP bullet&rsquo;s own page should be <span class="mono">www.pramaindia.in/product/pt-nc386p3-wnramd2/</span> &mdash; that is the pattern Prama uses and the other models resolve on it, but this one <strong>could not be confirmed</strong>. Use the dome sibling or the index above, or ask the dealer for the datasheet.</span> <span class="pill pe">Unconfirmed</span></div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>3 &middot; CP Plus 8 MP long-throw</strong><br><span class="mono" style="font-size:.92em;color:var(--ink3)">CP-UNC-TG81ZL12-VMD</span><br><span class="pill pe">Quote required</span></td>
+        <td>
+          <div><span style="color:var(--ink3)">Full spec including field of view and close-focus distance &mdash;</span> <a href="https://www.serverschennai.in/cp-plus-cp-unc-tg81zl12-vmd-8mp-ai-ir-network-bullet-camera-20555.html" target="_blank" rel="noopener">www.serverschennai.in/cp-plus-cp-unc-tg81zl12-vmd-8mp-ai-ir-network-bullet-camera-20555.html</a> <span class="pill pv">Confirmed live</span></div>
+          <div><span style="color:var(--ink3)">Dealer pages with datasheet &mdash;</span> <a href="https://cpplus.net.in/product/cp-unc-tg81zl12-vmd-8mp-ai-ir-network-bullet-camera/" target="_blank" rel="noopener">cpplus.net.in</a> &middot; <a href="https://asi.ind.in/product/cp-plus-cp-unc-tg81zl12-vmd-8mp-ai-ir-network-bullet-camera/" target="_blank" rel="noopener">asi.ind.in</a></div>
+          <div><span style="color:var(--ink3)">Whole 8 MP range &mdash;</span> <a href="https://cpplusworld.com/products/network-camera/8-mp" target="_blank" rel="noopener">cpplusworld.com/products/network-camera/8-mp</a></div>
+          <div><span style="color:var(--ink3)">The manufacturer&rsquo;s own product page <span class="mono">www.cpplusworld.com/cp-unc-tg81zl12-vmd</span> is indexed by search engines but <strong>does not load</strong>. Use the pages above.</span> <span class="pill pu">Broken</span></div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>4 &middot; Matrix SATATYA</strong><br><span class="mono" style="font-size:.92em;color:var(--ink3)">CIDR80ML12CWP</span><br><span class="pill pu">No public price</span></td>
+        <td>
+          <div><span style="color:var(--ink3)">Technical specifications &mdash;</span> <a href="https://www.matrixcomsec.com/resources/technical-specifications/" target="_blank" rel="noopener">www.matrixcomsec.com/resources/technical-specifications/</a></div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Everything else</strong><br><span style="color:var(--ink3)">NVRs, PoE switches, WD&nbsp;Purple drives, CAT6, and the &#8377;2,850 head-count dome</span></td>
+        <td>
+          <div><span style="color:var(--ink3)">Prama full price list &mdash;</span> <a href="https://www.nicedealonline.com/prama-ip-cctv" target="_blank" rel="noopener">www.nicedealonline.com/prama-ip-cctv</a></div>
+          <div><span style="color:var(--ink3)">CP Plus full price list &mdash;</span> <a href="https://www.nicedealonline.com/cp-plus-ip-cctv" target="_blank" rel="noopener">www.nicedealonline.com/cp-plus-ip-cctv</a></div>
+          <div><span style="color:var(--ink3)">These two pages are what you build the quote from. Contact on the page: Akhil, +91-9990097060.</span></div>
+        </td>
+      </tr>
+    </tbody>
+    <caption><strong>If a link does not open when you tap it, that is the PDF viewer, not the link</strong> &mdash; in-app previews on phones ignore PDF link annotations. Open this brief in a browser, or type the address, which is why every one is printed in full. <strong>Prices move:</strong> the Prama dome was &#8377;11,250 on 30 July and &#8377;9,350 on 31 July, with other authorised sellers at &#8377;7,100&ndash;7,560. All costs in this brief use &#8377;9,350.</caption>
+  </table></div>
+
+  <div class="grid2">
+    <div class="note nr"><span class="nt">Two specification traps</span>
+      <p><strong>1. "Identify at 11 m" is not a face-recognition figure.</strong> DORI Identification is 250 pixels per metre, which is <strong>15.8 pixels between the eyes</strong> &mdash; one sixth of the ISO/IEC 39794&#8209;5 minimum of 90 px and half the practical floor for a deep model. Whatever Identify distance appears on a quotation, treat usable recognition distance as a small fraction of it.</p>
+      <p style="margin-top:5px"><strong>2. Do not budget from MRP.</strong> Consumer listings show 48&ndash;57% MRP-to-street gaps. The prices above are GST-inclusive channel-partner prices &mdash; a defensible floor, and institutional volume at 200+ units should land at or below them.</p></div>
+
+    <div class="note ng"><span class="nt">Demand in writing from every vendor</span>
+      <ul style="margin-bottom:0">
+        <li>Exact focal range for that model <em>and</em> firmware, from the manufacturer, not a retailer.</li>
+        <li><strong>Measured pixel count between a subject's eyes at 6 m and 9 m at full zoom, in a room, on video.</strong></li>
+        <li>RTSP URL format, with written confirmation that direct stream access works without routing through the vendor's own VMS.</li>
+        <li>Sustained frame rate at full resolution, and whether it drops when analytics are enabled.</li>
+        <li>STQC certificate number for that model and firmware version.</li>
+        <li>Bitrate at H.265+ in a low-motion indoor scene &mdash; this is what sizes the storage bill.</li>
+      </ul></div>
+  </div>
+
+  <div class="note nk"><span class="nt">Which to buy first</span>
+    <p><strong>Buy one Prama 4 MP varifocal dome at &#8377;9,350 and measure &mdash; and get CP-UNC-TG81ZL12-VMD quoted in parallel.</strong> It is the cheapest verified unit with motorised zoom, which is the one control that lets you trade field of view against pixel density without a site visit. Mount it front-corner at 2.5 m, tilt 15&ndash;20&deg;, zoom to full telephoto, pull an RTSP frame and count the pixels between a student's eyes at 6 m and 9 m in a real 70-seat room. That single &#8377;9,350 measurement settles whether the room needs two, three or four cameras &mdash; a swing of more than &#8377;15 lakh across 106 classrooms, and 0.02% of the camera option's capital to find out.</p><p style="margin-top:5px"><strong>The CP Plus long-throw unit is the one that could change the whole comparison.</strong> At full telephoto it puts 102 px between a back-row student's eyes at 9 m &mdash; above the ISO 90 px minimum, which nothing else in this brief reaches. The catch is real: at that zoom each camera covers only 2.37 m, so a 10 m back row needs five, and the published close-focus distance at telephoto is 6 m, so those cameras cannot serve the front rows at all. There is no public price. If it quotes anywhere near the Prama, the camera option gets materially stronger on identity and materially more expensive at the same time.</p>
+  </div>
+</section>
+
+<!-- 05 COMPLIANCE + EVIDENCE -->
+<section>
+  <span class="snum">06</span>
+  <h2>Compliance and the adoption record</h2>
+
+  <div class="note nr"><span class="nt">DPDP &mdash; the two provisions that decide this</span>
+    <p>The <a href="https://en.wikipedia.org/wiki/Digital_Personal_Data_Protection_Rules,_2025" target="_blank" rel="noopener">DPDP Rules 2025 were notified on 14 November 2025</a>; obligations on notice, retention, security and children's data <a href="https://www.amsshardul.com/insight/enforcement-of-the-dpdp-act-and-notification-of-the-dpdp-rules/" target="_blank" rel="noopener">come into force 14 May 2027</a>. A <strong>child is anyone under 18</strong> &mdash; stricter than GDPR or COPPA &mdash; and NIAT's first-year intake includes 17-year-olds. <strong>Section 9(1)</strong> requires verifiable parental consent: applies to both options. <strong>Section 9(3)</strong> prohibits tracking or behavioural monitoring of children outright and cannot be unlocked by consent: this is where the options diverge. <a href="https://www.dpdpa.com/dpdparules/rule12.html" target="_blank" rel="noopener">Rule 12 gives educational institutions a conditional exemption</a> &mdash; narrow, purpose-bound, requiring documented necessity. Not a blanket permission for either.</p>
+    <p style="margin-top:5px"><strong>Required either way:</strong> a DPIA, a written retention schedule, a documented lawful basis for under-18s, and a per-university notice. <strong>Every enforcement case reviewed turned on a missing impact assessment, not on the technology.</strong></p>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:18%">Dimension</th><th class="cA" style="width:41%">A &mdash; AttendSmart</th><th class="cB" style="width:41%">B &mdash; Camera</th></tr></thead>
+    <tbody>
+      <tr><td>Processed</td><td class="colA">One signature per student; frames kept only for dispute evidence</td><td class="colB">Continuous video of every student in every class, plus matching against it</td></tr>
+      <tr><td>Behavioural monitoring?</td><td class="colA">No &mdash; a discrete, student-initiated event</td><td class="colB"><strong>Arguably yes.</strong> Skellefte&aring; and China Pharmaceutical both drifted from attendance into behaviour, and both were stopped</td></tr>
+      <tr><td>Consent posture</td><td class="colA">Student acts each time; declining is visible and workable</td><td class="colB">Passive and unavoidable. Student-to-institution consent was the exact ground Sweden's DPA rejected</td></tr>
+      <tr><td>Breach blast radius</td><td class="colA">Templates plus 5.65 TB of frames &mdash; serious, bounded</td><td class="colB">172&ndash;412 TB of identifiable video of minors. The worst case here</td></tr>
+      <tr><td>Purpose limitation</td><td class="colA">Low risk &mdash; one purpose, hard to repurpose</td><td class="colB">High &mdash; dual use is the business case, so both purposes must be in the notice</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="font-size:13px"><strong>There are three architectures in the field, not two.</strong> Sorting them correctly matters, because the largest deployments in the world are not the architecture AttendSmart uses.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:15%">Family</th><th style="width:22%">How a face gets captured</th><th style="width:12%">Inter-eye px</th><th style="width:51%">Documented deployments</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="colA"><strong>A1 &mdash; student self-capture</strong><br><span style="color:var(--ink3)">what AttendSmart does</span></td>
+        <td class="colA">One face fills the frame on the person&rsquo;s own device, 40&ndash;55 cm away</td>
+        <td class="colA num">104&ndash;300</td>
+        <td class="colA"><strong>National Medical Commission</strong> &mdash; face-based Aadhaar <a href="https://www.deccanherald.com/india/ghost-faculty-nmc-mandates-face-based-authentication-attendance-3507349" target="_blank" rel="noopener">mandatory across all medical colleges from May 2025</a>, GPS-bound to 100 m <span class="pill pv">Regulator</span> &middot; <strong>Telangana teachers</strong> &mdash; ~1 lakh staff mark by selfie daily since Aug 2025 <span class="pill pv">Government</span> &middot; <strong>Telangana junior colleges</strong> &mdash; <a href="https://news.careers360.com/telangana-rolls-out-facial-recognition-system-in-430-junior-colleges-track-student-attendance-63587-register/amp" target="_blank" rel="noopener">430 colleges, 63,587 students registered</a> from Aug 2025 <span class="pill pv">Government</span><br><em>Note: no A1 deployment at NIAT&rsquo;s scale is documented for school-age students &mdash; the large A1 programmes are for staff.</em></td>
+      </tr>
+      <tr>
+        <td class="colA"><strong>A2 &mdash; teacher photographs the room</strong><br><span style="color:var(--ink3)">handheld, no fixed hardware</span></td>
+        <td class="colA">Many faces at once on a teacher&rsquo;s phone or tablet, 2&ndash;5 m away</td>
+        <td class="colA num">40&ndash;90</td>
+        <td class="colA"><strong>Telangana</strong> &mdash; <strong>26,000 schools, 26 lakh students.</strong> Teacher takes a selfie, then a long shot of the class. Live since 2025; the World Bank AI repository records <strong>2.1 million facial templates processed daily</strong>, ~70% daily attendance recorded, absence SMS to parents <span class="pill pv">Fully deployed</span><br><strong>Karnataka &lsquo;Nirantara&rsquo;</strong> &mdash; announced for <strong>52,686 schools</strong> (46,460 government + 6,226 aided) and <strong>52 lakh students</strong>. Teacher rotates the phone to capture a class of 50 in seconds. District pilot in Uttara Kannada judged successful; <a href="https://news.careers360.com/karnataka-scrap-facial-recognition-attendance-govt-school-data-privacy-mid-day-meal-ai-app-digital-madhu-bangarappa-education-news/amp" target="_blank" rel="noopener">walked back for students on 24 June 2025</a>, protested again in August by 31 signatories including former DU, JNU and TIFR professors, then <a href="https://www.deccanherald.com/amp/story/india%2Fkarnataka%2Fkarnataka-to-extend-ai-powered-facial-recognition-attendance-system-to-government-school-pu-teachers-3768255" target="_blank" rel="noopener">re-scoped to teachers and PU college staff in October</a> <span class="pill pe">Reversed for students</span><br><strong>Paran&aacute;, Brazil</strong> &mdash; teachers photograph whole classes; prosecutors began legal action April 2025 <span class="pill pu">Under challenge</span> &middot; <strong>Uttar Pradesh KGBV</strong> &mdash; 746 schools <span class="pill pv">Government</span></td>
+      </tr>
+      <tr>
+        <td class="colB"><strong>B &mdash; fixed room camera</strong><br><span style="color:var(--ink3)">the option under evaluation</span></td>
+        <td class="colB">Many faces at once from a permanently mounted camera, 2&ndash;12 m away</td>
+        <td class="colB num">24&ndash;40</td>
+        <td class="colB"><strong>China Pharmaceutical University</strong> &mdash; reached <strong>2 classrooms</strong>; backlash, and China&rsquo;s Ministry of Education moved to <a href="https://feeds.bbci.co.uk/news/world-asia-49608459" target="_blank" rel="noopener">curb facial recognition in schools</a> within days <span class="pill pu">Halted</span><br><strong>Skellefte&aring;, Sweden</strong> &mdash; 22 students, 3 weeks; became <a href="https://edpb.europa.eu/news/national-news/2019/facial-recognition-school-renders-swedens-first-gdpr-fine_sv" target="_blank" rel="noopener">Sweden&rsquo;s first GDPR fine</a> <span class="pill pu">Fined</span><br><strong>FPT Polytechnic, Vietnam</strong> &mdash; 120 students, peer-reviewed; authors report <a href="https://www.mdpi.com/2073-8994/12/2/307" target="_blank" rel="noopener">&ldquo;still struggling with low recall&rdquo;</a> <span class="pill pv">Academic pilot</span><br><strong>Vendor platforms</strong> claim 99.9% accuracy with <strong>no named institutional reference at scale</strong> <span class="pill pu">Unverified</span></td>
+      </tr>
+    </tbody>
+    <caption>Karnataka figures confirmed against the official directive of 21 June 2025 as reported by Careers360; Telangana against The Hans India, Telangana Today and the World Bank AI repository entry. All checked 31 July 2026.</caption>
+  </table></div>
+
+  <div class="note nk"><span class="nt">What this actually tells us &mdash; and it cuts against the earlier reading</span>
+    <p><strong>The world&rsquo;s largest face-attendance deployments are A2, not A1.</strong> Telangana and Karnataka both work by a teacher photographing the class &mdash; many faces at distance. That is the <em>same physics as a fixed camera</em>, just handheld and closer. So the &ldquo;tens of thousands of schools&rdquo; precedent does not validate AttendSmart&rsquo;s architecture; it validates the many-faces-at-distance approach that the camera option also uses.</p>
+    <p><strong>That softens the physics objection to the camera.</strong> Telangana processes 2.1 million facial templates a day in production. Recognising many faces at once, at classroom distance, evidently works well enough for a state government to run it at national scale &mdash; which is close to the thing this brief called unproven.</p>
+    <p><strong>It does not eliminate the objection.</strong> A2 is handheld at 2&ndash;5 m and the teacher can move, rotate and re-shoot; a fixed camera at 6&ndash;12 m cannot. That is the difference between 40&ndash;90 px and 24&ndash;40 px. And Telangana records ~70% daily attendance, which is an attendance figure, not a recall figure &mdash; nobody has published how much of the gap is genuine absence and how much is the system failing to find a present student.</p>
+    <p><strong>The practical consequence: A2 is a third option NIAT has not evaluated.</strong> An instructor photographing the room from the front on a phone or tablet needs no fixed hardware, no student device, no 10-second code and no cabling &mdash; and it has the largest body of real-world evidence behind it of anything in this brief. It should be costed alongside the other two before a decision is taken.</p>
+  </div>
+</section>
+
+<!-- 06 NEXT -->
+<section>
+  <span class="snum">07</span>
+  <h2>What would settle this</h2>
+  <p class="sub">Five of the six decisive facts are unmeasured. Four cost nothing and one costs &#8377;9,350.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:4%">#</th><th style="width:42%">Measurement</th><th style="width:11%">Cost</th><th>What it settles</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td><strong>Laptop availability in live sessions.</strong> Ownership is mandated, so don't survey ownership. Ask in two sections for a week: <em>is your laptop here, charged and open right now?</em> &mdash; and separately, how many missed the 10-second window.</td><td>&#8377;0</td><td>The most decisive number in the comparison, plus a second source of wrongly-absent marks nobody has counted.</td></tr>
+      <tr><td class="mono">2</td><td><strong>The real peak.</strong> Instrument one full period across all campuses: how many students submit inside 60 seconds, and what the ingest rate hits. Answerable from existing logs.</td><td>&#8377;0</td><td>The &#8377;13.86 L versus &#8377;28.14 L question.</td></tr>
+      <tr><td class="mono">3</td><td><strong>Measured back-row pixels in a real 70-seat room.</strong> One Prama varifocal, front-corner at 2.5 m, tilt 15&ndash;20&deg;, full telephoto; pull an RTSP frame, measure inter-eye pixels at 6 m and 9 m. Measure the actual room width too.</td><td>&#8377;9,350</td><td>Two versus three cameras per room &mdash; a &#8377;15.6 L swing.</td></tr>
+      <tr><td class="mono">4</td><td><strong>Ask facilities and campus security what they would pay</strong> for classroom coverage across 18 universities, independent of attendance.</td><td>&#8377;0</td><td>Could cut the camera's attendance-attributable cost by two thirds. At 30% the options cost the same.</td></tr>
+      <tr><td class="mono">5</td><td><strong>Re-run the video-call proxy attempt</strong> after device binding and screen-replay detection, on one verified section.</td><td>Internal dev</td><td>Either closes the camera's strongest argument or confirms it.</td></tr>
+      <tr><td class="mono">6</td><td><strong>Fix what is already known broken in AttendSmart</strong>, regardless of the decision: restore the 12 CDU sections, add an enrolled-count pre-flight guard, find why records vanished, raise the threshold to 0.51, capture the frame at eye closure, correct the proxy-detection logic. And add one supervised enrolment check.</td><td>&#8377;0</td><td>These are defects, not architecture. Also closes enrolment poisoning, the only attack surviving every configuration.</td></tr>
+      <tr><td class="mono">7</td><td><strong>Start the DPIA</strong> and get the under-18 lawful basis in writing. <strong>Reconcile against Sai Kiran's costing</strong> and request written quotes from Prama, CP Plus and Matrix.</td><td>&#8377;0</td><td>Required for both options; the omission that ended every enforcement case reviewed.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What this comparison does not know</h3>
+  <p style="font-size:12.5px;color:var(--ink2)"><strong>Laptop availability and the 10-second miss rate</strong> have never been surveyed. <strong>No pixel measurement exists</strong> from a real NIAT classroom &mdash; Section 01's figures are lens arithmetic from published standards. <strong>Neither option's recall has been measured at NIAT</strong>, and the two figures quoted are not measured the same way; the multi-frame sampling gain for the camera is real and unquantified. <strong>Two cameras per room is unproven</strong> and at 70 students in a 9&ndash;10 m room, three or four is more likely. <strong>Room width is derived, not measured.</strong> The 8&nbsp;MP Prama price is inferred from a verified 4&nbsp;MP sibling; the Matrix price is deliberately blank. <strong>Installation at &#8377;3,500 per camera</strong> comes from published ranges, not a site survey &mdash; 18 campuses is 18 sets of site conditions. <strong>Exception-handling labour is unpriced on both sides.</strong> <strong>Sai Kiran's calculator is now incorporated</strong>, but it models three still snapshots per period while the design was described as a video &mdash; not the same product, and unresolved. <strong>The scores are judgements</strong> &mdash; disagreeing with one is a legitimate way to disagree with this brief, and the weights are yours to change. <strong>No head-to-head study exists anywhere</strong> comparing both architectures on the same cohort.</p>
+
+  <h3 id="srch">Sources</h3>
+  <p style="font-size:11.5px;color:var(--ink3)">Pilot evidence: AttendSmart field test report, 27&ndash;28 July 2026. Biometric thresholds: ISO/IEC 39794&#8209;5:2019 (IED &ge; 90 px) and 19794&#8209;5:2011 (120 px preferred) via <a href="https://arxiv.org/pdf/2211.08030" target="_blank" rel="noopener">arXiv 2211.08030</a>; low-resolution floor via <a href="https://arxiv.org/pdf/1805.11519" target="_blank" rel="noopener">arXiv 1805.11519</a>; DORI per IEC EN 62676&#8209;4. Classroom CCTV recall: <a href="https://www.sciencedirect.com/science/article/pii/S1877050925016655" target="_blank" rel="noopener">ScienceDirect S1877050925016655</a>, <a href="https://www.mdpi.com/2073-8994/12/2/307" target="_blank" rel="noopener">MDPI Symmetry 12(2):307</a>. Hardware prices and specifications: the eleven links in Section 05, all opened 31 July 2026. Cloud pricing: <a href="https://aws.amazon.com/rekognition/pricing/" target="_blank" rel="noopener">AWS Rekognition</a>, US East. Adoption: <a href="https://privacyinternational.org/examples/facial-recognition" target="_blank" rel="noopener">Privacy International</a>, <a href="https://feeds.bbci.co.uk/news/world-asia-49608459" target="_blank" rel="noopener">BBC</a>, <a href="https://www.sixthtone.com/news/1003759/camera-above-the-classroom" target="_blank" rel="noopener">Sixth Tone</a>, <a href="https://edpb.europa.eu/news/national-news/2019/facial-recognition-school-renders-swedens-first-gdpr-fine_sv" target="_blank" rel="noopener">EDPB</a>, <a href="https://www.deccanherald.com/india/ghost-faculty-nmc-mandates-face-based-authentication-attendance-3507349" target="_blank" rel="noopener">Deccan Herald</a>. DPDP: <a href="https://www.dpdpa.com/dpdparules/rule12.html" target="_blank" rel="noopener">Rule 12</a>, <a href="https://www.dpdpindia.in/dpdp-children.html" target="_blank" rel="noopener">Section 9</a>. &mdash; Calculations reproducible from the assumptions in Section 04. <span class="pill pv">Verified</span> = checked against a primary source; <span class="pill pe">Estimate</span> = not.</p>
+  </section>
+
+</div>
+
+<button class="backtop" onclick="window.scrollTo({top:0,behavior:'smooth'})">&uarr; Back to summary</button>
+</div>
+<script>
+document.getElementById("openBrief").addEventListener("click",function(e){
+  e.preventDefault();
+  var f=document.getElementById("fullbrief");
+  f.classList.add("open");
+  setTimeout(function(){f.scrollIntoView({behavior:"smooth",block:"start"});},30);
+});
+
+(function(){
+  var C=[["Identity accuracy",3,2],["Recall",3,3],["Presence proof",1,5],["Liveness / spoof resistance",2,1],
+    ["Independence from student kit",3,5],["Student effort",3,5],["Instructor effort",3,5],["Richness of record",2,5],
+    ["Purchase price",4,1],["Running cost",5,2],["Scaling to new campuses",5,2],["Privacy / DPDP",4,2],
+    ["Deployment risk",4,2],["Dual-use & asset life",1,5],["Failure blast radius",3,3]];
+  var P={equal:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],cost:[1,2,1,1,1,1,1,1,5,5,5,2,3,1,1],
+    integrity:[3,3,5,5,1,1,1,4,1,1,1,2,1,1,4],inclusion:[2,4,1,1,5,5,5,2,1,1,1,1,2,1,2],
+    compliance:[4,2,2,3,1,1,1,1,1,1,1,5,2,1,3]};
+  var MSG={equal:"At equal weight the two are effectively tied — the honest headline of this brief.",
+    cost:"If budget is the binding constraint, AttendSmart wins clearly.",
+    integrity:"If stopping proxy attendance is the point, the camera wins — its residual attacks need physical props in a watched room.",
+    inclusion:"If no student may be disadvantaged by a device failing, the camera wins comfortably.",
+    compliance:"If DPDP exposure on under-18s and identity accuracy outrank everything, AttendSmart wins."};
+  var host=document.getElementById('crits'),rows=[];
+  C.forEach(function(c){
+    var d=document.createElement('div');
+    d.style.cssText='display:inline-block;margin:0 14px 6px 0;white-space:nowrap';
+    d.innerHTML='<span style="color:var(--ink2)">'+c[0]+'</span> '+
+      '<input class="wsl" type="range" min="0" max="5" value="1" aria-label="Weight for '+c[0]+'"> '+
+      '<span style="font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--a2)">'+c[1]+'</span>'+
+      '<span style="color:var(--ink3)">/</span>'+
+      '<span style="font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--b2)">'+c[2]+'</span>';
+    host.appendChild(d);
+    var i=d.querySelector('input');rows.push(i);
+    i.addEventListener('input',function(){setP(null);calc();});
+  });
+  function setP(k){document.querySelectorAll('.presets button').forEach(function(b){
+    b.setAttribute('aria-pressed',b.dataset.p===k?'true':'false');});}
+  function calc(k){
+    var a=0,b=0;for(var i=0;i<C.length;i++){var w=+rows[i].value;a+=w*C[i][1];b+=w*C[i][2];}
+    var t=a+b||1,pa=100*a/t;
+    document.getElementById('barA').style.width=pa.toFixed(1)+'%';
+    document.getElementById('barB').style.width=(100-pa).toFixed(1)+'%';
+    document.getElementById('barA').textContent='A '+a;
+    document.getElementById('barB').textContent='B '+b;
+    var lead=a>b?'<strong>AttendSmart ahead by '+(a-b)+'.</strong> ':b>a?'<strong>Camera ahead by '+(b-a)+'.</strong> ':'<strong>Dead tie.</strong> ';
+    document.getElementById('rout').innerHTML=lead+(k?MSG[k]:'Scores are fixed by evidence; the weights are yours.');
+  }
+  document.querySelectorAll('.presets button').forEach(function(btn){
+    btn.addEventListener('click',function(){var k=btn.dataset.p,w=P[k];
+      rows.forEach(function(r,i){r.value=w[i];});setP(k);calc(k);});
+  });
+  calc('equal');
+})();
+
+</script>
+</body>
+</html>

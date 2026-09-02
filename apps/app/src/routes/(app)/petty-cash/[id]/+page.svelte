@@ -8,7 +8,8 @@
 
   const STATUS: Record<string, { label: string; cls: string }> = {
     DRAFT: { label: "Draft", cls: "bg-slate-400/10 text-slate-500 border-slate-300 dark:border-slate-700" },
-    SUBMITTED: { label: "Awaiting Approval", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30" },
+    SUBMITTED: { label: "Awaiting L1 (Pravalika)", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30" },
+    L1_APPROVED: { label: "Awaiting L2 (Satish)", cls: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 border-yellow-500/30" },
     SENT_BACK: { label: "Sent Back", cls: "bg-orange-500/10 text-orange-600 dark:text-orange-300 border-orange-500/30" },
     APPROVED: { label: "Approved", cls: "bg-teal-500/10 text-teal-600 dark:text-teal-300 border-teal-500/30" },
     DISBURSED: { label: "Disbursed", cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border-indigo-500/30" },
@@ -21,8 +22,8 @@
   };
   const st = (s: string) => STATUS[s] || STATUS.DRAFT;
 
-  const STEPS = ["DRAFT", "SUBMITTED", "APPROVED", "DISBURSED", "BILL_SUBMITTED", "BILL_VERIFIED", "SETTLED"];
-  const STEP_LABEL: Record<string, string> = { DRAFT: "Drafted", SUBMITTED: "Submitted", APPROVED: "Approved", DISBURSED: "Disbursed", BILL_SUBMITTED: "Bill", BILL_VERIFIED: "Verified", SETTLED: "Settled" };
+  const STEPS = ["DRAFT", "SUBMITTED", "L1_APPROVED", "APPROVED", "DISBURSED", "BILL_SUBMITTED", "BILL_VERIFIED", "SETTLED"];
+  const STEP_LABEL: Record<string, string> = { DRAFT: "Drafted", SUBMITTED: "Submitted", L1_APPROVED: "L1 OK", APPROVED: "Approved", DISBURSED: "Disbursed", BILL_SUBMITTED: "Bill", BILL_VERIFIED: "Verified", SETTLED: "Settled" };
 
   const req = $derived(data.request);
   const isOwner = $derived(req.requester_user_id === data.me.id);
@@ -310,9 +311,18 @@
               <button onclick={() => call(`/api/petty-cash/${req.id}/approve`, { action: "cancel" })} disabled={busy} class="w-full py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50">Cancel Request</button>
             </div>
 
-          <!-- SUBMITTED: approver approves -->
-          {:else if req.status === "SUBMITTED" && data.caps.canApprove}
-            {#if panel === "approve"}
+          <!-- SUBMITTED / L1_APPROVED: the stage's approver acts -->
+          {:else if ["SUBMITTED", "L1_APPROVED"].includes(req.status) && data.caps.canApprove}
+            {#if panel === "approve" && data.caps.pendingLevel === 1}
+              <!-- Level 1 (Pravalika): first sign-off, no amount needed -->
+              <div class="space-y-3">
+                <p class="text-[11px] font-bold text-gray-500 dark:text-slate-400">Level-1 approval. After this it goes to Satish for the budget check &amp; final approval.</p>
+                <input bind:value={approveForm.remarks} placeholder="Remarks (optional)" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" />
+                <button onclick={() => call(`/api/petty-cash/${req.id}/approve`, { action: "approve", remarks: approveForm.remarks })} disabled={busy} class="w-full py-3 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 disabled:opacity-50">{busy ? "…" : "Approve (Level 1)"}</button>
+                <button onclick={() => (panel = "")} class="w-full py-2 text-gray-400 text-[10px] font-black uppercase tracking-widest">Cancel</button>
+              </div>
+            {:else if panel === "approve"}
+              <!-- Level 2 (Satish): budget check + final approval -->
               <div class="space-y-3">
                 <label class="block"><span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Approved amount (₹)</span>
                   <input type="number" bind:value={approveForm.amount_approved} class="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm tabular-nums" /></label>
@@ -339,7 +349,8 @@
               </div>
             {:else}
               <div class="space-y-2">
-                <button onclick={() => (panel = "approve")} class="w-full py-3 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700">Approve</button>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center pb-1">{data.caps.pendingLevel === 1 ? "Level 1 · Pravalika" : "Level 2 · Satish (final)"}</p>
+                <button onclick={() => (panel = "approve")} class="w-full py-3 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700">{data.caps.pendingLevel === 1 ? "Approve (Level 1)" : "Approve (Final)"}</button>
                 <button onclick={() => { panel = 'send_back'; noteText=''; }} class="w-full py-3 bg-orange-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600">Send Back</button>
                 <button onclick={() => { panel = 'reject'; noteText=''; }} class="w-full py-3 bg-white dark:bg-slate-800 border border-red-300 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-red-50">Reject</button>
               </div>
@@ -411,7 +422,8 @@
 
           {:else}
             <p class="text-sm text-gray-400">
-              {#if req.status === "SUBMITTED"}Waiting for Satish's approval.
+              {#if req.status === "SUBMITTED"}Waiting for Pravalika's Level-1 approval.
+              {:else if req.status === "L1_APPROVED"}Level-1 approved — waiting for Satish's final (budget) approval.
               {:else if req.status === "APPROVED"}Approved — waiting for finance to disburse the money.
               {:else if req.status === "DISBURSED"}Paid out — waiting for the requester to submit the bill.
               {:else if req.status === "BILL_SUBMITTED"}Bill submitted — waiting for finance to verify it.

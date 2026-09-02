@@ -1,0 +1,708 @@
+BOA: Raksha R
+Total tasks: 705
+
+2026-06-08 [COMPLETED] Update REPORT sheet for the central team
+2026-06-08 [COMPLETED] Update the internal marks in the format shared by the university
+2026-06-08 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-06-08 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-06-08 [COMPLETED] Cross verification of internals marks and assignment marks update
+2026-06-08 [COMPLETED] Drafted and shared necessary announcements with students
+2026-06-08 [COMPLETED] Update daily schedule report
+2026-06-05 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-06-05 [COMPLETED] Adhoc
+2026-06-05 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-06-05 [COMPLETED] Drafted and shared necessary announcements with students
+2026-06-05 [COMPLETED] Update REPORT sheet for the central team
+2026-06-05 [COMPLETED] Share communication messages for students
+2026-06-05 [COMPLETED] Update the internal marks in the format shared by the university
+2026-06-05 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-06-05 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-06-05 [COMPLETED] Updating CCTV footage data in the given sheet
+2026-06-05 [COMPLETED] Update daily schedule report
+2026-06-04 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-06-04 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-06-04 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-06-04 [COMPLETED] Communication Message
+2026-06-04 [COMPLETED] Update REPORT sheet for the central team
+2026-06-04 [COMPLETED] Update daily schedule report
+2026-06-04 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-06-04 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-06-04 [COMPLETED] Drafted and shared necessary announcements with students
+2026-06-04 [COMPLETED] Create a consolidated data sheet for SEM2 1st and 2nd internal.
+2026-06-04 [COMPLETED] Communication Message
+2026-06-04 [COMPLETED] Drafted and shared necessary announcements with students
+2026-06-04 [COMPLETED] Update daily reporting sheet
+2026-06-04 [COMPLETED] Update daily schedule report
+2026-06-04 [COMPLETED] Update REPORT sheet for the central team
+2026-06-04 [COMPLETED] Update the internal marks in the format shared by the university
+2026-06-04 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-06-04 [COMPLETED] Mark attendance in the Roaster sheet, scan the QR code, resolve the issue raised during the GRIT assessment
+2026-05-21 [COMPLETED] Update daily reporting sheet
+2026-05-21 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-05-21 [COMPLETED] Create click and share to share details of next SEM fee data to parents and Students.
+2026-05-21 [COMPLETED] Mark attendance in the Roaster sheet, scan the QR code, resolve the issue raised during the GRIT assessment
+2026-05-21 [COMPLETED] Upload timetable in the campus admin portal
+2026-05-21 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-05-21 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-05-21 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-21 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-21 [COMPLETED] KT to new BOA
+2026-05-21 [COMPLETED] Communication Message
+2026-05-21 [COMPLETED] Update REPORT sheet for the central team
+2026-05-21 [COMPLETED] Update daily schedule report
+2026-05-20 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-20 [COMPLETED] Update daily schedule report
+2026-05-20 [COMPLETED] Communication Message
+2026-05-20 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-05-20 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-05-20 [COMPLETED] Upload 2nd internals MCQ and Descriptive QP in assessment beta and prod portal
+2026-05-20 [COMPLETED] Create event report for the university
+2026-05-20 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-20 [COMPLETED] Mark attendance in the Roaster sheet, scan the QR code, resolve the issue raised during the GRIT assessment
+2026-05-20 [COMPLETED] Update REPORT sheet for the central team
+2026-05-20 [COMPLETED] Update daily reporting sheet
+2026-05-20 [COMPLETED] Upload timetable in the campus admin portal
+2026-05-20 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-05-14 [COMPLETED] Update REPORT sheet for the central team
+2026-05-14 [COMPLETED] Update daily reporting sheet
+2026-05-14 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-14 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-14 [COMPLETED] Communication Message
+2026-05-14 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-05-13 [COMPLETED] Upload interview recordings and transcripts to the “Business Operation Associate” Sheet
+2026-05-13 [COMPLETED] Update the attendance of faculty in “Attendance OnCampus” Sheet.
+2026-05-13 [COMPLETED] Update the status of the interview by adding the remarks.
+2026-05-13 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-13 [COMPLETED] Schedule the interview, create the meeting link, and share the details with the candidate and conduct the interview.
+2026-05-13 [COMPLETED] Update REPORT sheet for the central team
+2026-05-13 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-13 [COMPLETED] Update daily schedule report
+2026-05-13 [COMPLETED] Communication Message
+2026-05-13 [COMPLETED] Update daily reporting sheet
+2026-05-13 [COMPLETED] Assets
+2026-05-12 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-12 [COMPLETED] Communication Message
+2026-05-12 [COMPLETED] Update daily reporting sheet
+2026-05-12 [COMPLETED] Assets
+2026-05-12 [COMPLETED] Interview Coordination & BOA Round 1 Execution
+2026-05-12 [COMPLETED] Update REPORT sheet for the central team
+2026-05-12 [COMPLETED] Generate certificates for the Master class and create click and share sheet to send the certificates to the students individually
+2026-05-12 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-12 [COMPLETED] Update daily schedule report
+2026-05-12 [COMPLETED] Update the status of the interview by adding the remarks.
+2026-05-11 [COMPLETED] Interview Coordination & BOA Round 1 Execution
+2026-05-11 [COMPLETED] Update REPORT sheet for the central team
+2026-05-11 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-11 [COMPLETED] Update daily schedule report
+2026-05-11 [COMPLETED] Create click and share to send Brave top 20 students message
+2026-05-11 [COMPLETED] Communication Message
+2026-05-11 [COMPLETED] Update daily reporting sheet
+2026-05-11 [COMPLETED] Upload GRIT roaster to drive
+2026-05-11 [COMPLETED] Innovators workshop — Pre-Event Phase
+2026-05-11 [COMPLETED] Communication Message
+2026-05-11 [COMPLETED] Innovators workshop — Phase 1: Initial Preparations
+2026-05-11 [COMPLETED] Innovators workshop — Execute a complete walk-through of the event operations.
+2026-05-11 [COMPLETED] Create click and share to send Brave top 20 students meeting links.
+2026-05-11 [COMPLETED] Calculate attendance percentage of all the students subject wise and create click and share to send individually to students.
+2026-05-11 [COMPLETED] Update the status of the interview by adding the remarks.
+2026-05-11 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect.
+2026-05-11 [COMPLETED] Ensuring the smooth and successful execution of the club activity.
+2026-05-11 [COMPLETED] Certificate Creation
+2026-05-11 [COMPLETED] UniConnect Data Update
+2026-05-11 [COMPLETED] Create club activity report
+2026-05-11 [COMPLETED] Innovators workshop — Event Principal
+2026-05-11 [COMPLETED] Innovators workshop — Any problems during execution and how they were resolved
+2026-05-11 [COMPLETED] Innovators workshop — ● Identify absentees for necessary post-session follow-up.
+2026-05-11 [COMPLETED] Innovators workshop — CONSOLIDATED READINESS CHECKLIST
+2026-05-11 [COMPLETED] Innovators workshop — Phase 3: Post-Session Wrap-Up
+2026-05-11 [COMPLETED] Innovators workshop — ● Complete the event summary on the same day or by the following morning.
+2026-05-11 [COMPLETED] Innovators workshop — BATCH LOGISTICS FRAMEWORK
+2026-05-11 [COMPLETED] Innovators workshop — for event documentation
+2026-05-11 [COMPLETED] Innovators workshop — 200+ students Multi-day planning with additional facilitators
+2026-05-11 [COMPLETED] Innovators workshop — OVERVIEW
+2026-05-11 [COMPLETED] Innovators workshop — Phase 2: Live Session Oversight
+2026-05-11 [COMPLETED] Innovators workshop — KEY WORKSHOP DETAILS -
+2026-05-11 [COMPLETED] Innovators workshop — T-2 Days — Logistical Arrangements
+2026-05-11 [COMPLETED] Innovators workshop — General
+2026-05-11 [COMPLETED] Innovators workshop — Task Owner Done
+2026-05-06 [COMPLETED] create feedback form for the medial club activity
+2026-05-06 [COMPLETED] Update daily schedule report
+2026-05-06 [COMPLETED] Update REPORT sheet for the central team
+2026-05-06 [COMPLETED] Update daily reporting sheet
+2026-05-06 [COMPLETED] Assets
+2026-05-06 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-05 [COMPLETED] Conduct the round 1 interview for the BOA position.
+2026-05-05 [COMPLETED] UniConnect Data Update
+2026-05-05 [COMPLETED] Communication Message
+2026-05-05 [COMPLETED] Update daily reporting sheet
+2026-05-05 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-05 [COMPLETED] Campus Visit Coordination
+2026-05-05 [COMPLETED] Update REPORT sheet for the central team
+2026-05-05 [COMPLETED] GRIT invigilation
+2026-05-05 [COMPLETED] Update daily schedule report
+2026-05-04 [COMPLETED] UniConnect Data Update
+2026-05-04 [COMPLETED] Interview Coordination & BOA Round 1 Execution
+2026-05-04 [COMPLETED] Update REPORT sheet for the central team
+2026-05-04 [COMPLETED] Update daily reporting sheet
+2026-05-04 [COMPLETED] GRIT Exam preparation
+2026-05-04 [COMPLETED] Update daily schedule report
+2026-05-04 [COMPLETED] Assets
+2026-05-04 [COMPLETED] Communication Message
+2026-05-04 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-03 [COMPLETED] Communication Message
+2026-05-03 [COMPLETED] Interview Coordination & BOA Round 1 Execution
+2026-05-03 [COMPLETED] GRIT Exam preparation
+2026-05-03 [COMPLETED] Update daily reporting sheet
+2026-05-03 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-03 [COMPLETED] UniConnect Data Update
+2026-05-03 [COMPLETED] Update daily schedule report
+2026-05-03 [COMPLETED] Add session attendance slots for MyNiat App in Django portal
+2026-05-03 [COMPLETED] Update REPORT sheet for the central team
+2026-05-01 [COMPLETED] Certificate Creation
+2026-05-01 [COMPLETED] Communication Message
+2026-05-01 [COMPLETED] Update REPORT sheet for the central team
+2026-05-01 [COMPLETED] Interview Coordination & BOA Round 1 Execution
+2026-05-01 [COMPLETED] Update daily schedule report
+2026-05-01 [COMPLETED] Calculate subject wise attendance percentage of the students until 30/04/2026
+2026-05-01 [COMPLETED] Drafted and shared necessary announcements with students
+2026-05-01 [COMPLETED] Assets
+2026-05-01 [COMPLETED] Update daily reporting sheet
+2026-05-01 [COMPLETED] Faculty Attendance & Session Update with SI/PI – UniConnect
+2026-04-29 [COMPLETED] Assets
+2026-04-29 [COMPLETED] UniConnect Data Update
+2026-04-29 [COMPLETED] Communication Message
+2026-04-29 [COMPLETED] Update daily reporting sheet
+2026-04-29 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-29 [COMPLETED] Update the event details conducted until now in the sheet shared by central CMA
+2026-04-29 [COMPLETED] Prepare event report for the tech club activity
+2026-04-29 [COMPLETED] Update REPORT sheet for the central team
+2026-04-29 [COMPLETED] Update daily schedule report
+2026-04-28 [COMPLETED] Update REPORT sheet for the central team
+2026-04-28 [COMPLETED] Verify the attendance status for the students whose attendance wasn't scanned
+2026-04-28 [COMPLETED] UniConnect Data Update
+2026-04-28 [COMPLETED] Campus Visit Coordination
+2026-04-28 [COMPLETED] Update the event details conducted until now in the sheet shared by central CMA
+2026-04-28 [COMPLETED] Update daily reporting sheet
+2026-04-28 [COMPLETED] Update REPORT sheet for the central team
+2026-04-28 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-04-28 [COMPLETED] GRIT invigilation
+2026-04-28 [COMPLETED] Assets
+2026-04-28 [COMPLETED] Update daily reporting sheet
+2026-04-28 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-04-28 [COMPLETED] Communication Message
+2026-04-28 [COMPLETED] Interview Scheduling and Communication
+2026-04-28 [COMPLETED] Update the exam and holiday details of May in the sheet shared by central team
+2026-04-28 [COMPLETED] Update daily schedule report
+2026-04-28 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-28 [COMPLETED] GRIT Exam preparation
+2026-04-28 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-27 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-04-27 [COMPLETED] GRIT inivigilation
+2026-04-27 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect
+2026-04-27 [COMPLETED] GRIT Exam preparation
+2026-04-27 [COMPLETED] Campus Visit Coordination
+2026-04-27 [COMPLETED] Update daily schedule report
+2026-04-27 [COMPLETED] Communication Message
+2026-04-27 [COMPLETED] Assets
+2026-04-26 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-26 [COMPLETED] Communication Message
+2026-04-26 [COMPLETED] Update daily schedule report
+2026-04-26 [COMPLETED] Assets
+2026-04-26 [COMPLETED] Campus Visit Coordination
+2026-04-26 [COMPLETED] Update daily reporting sheet
+2026-04-26 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect
+2026-04-26 [COMPLETED] GRIT seating arrangement
+2026-04-26 [COMPLETED] Update REPORT sheet for the central team
+2026-04-24 [COMPLETED] Campur Tour
+2026-04-24 [COMPLETED] Update REPORT sheet for the central team
+2026-04-24 [COMPLETED] Skill assessment
+2026-04-24 [COMPLETED] Update daily schedule report
+2026-04-24 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-24 [COMPLETED] Mark attendance of faculty, Update session details completed today by each instructor and add SI and PI in UniConnect
+2026-04-24 [COMPLETED] Update daily reporting sheet
+2026-04-24 [COMPLETED] Communication Message
+2026-04-23 [COMPLETED] Update daily reporting sheet
+2026-04-23 [COMPLETED] Update REPORT sheet for the central team
+2026-04-23 [COMPLETED] Communication Message
+2026-04-23 [COMPLETED] Communication Message
+2026-04-23 [COMPLETED] Assets
+2026-04-23 [COMPLETED] UniConnect Data Update
+2026-04-23 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-23 [COMPLETED] Update daily schedule report
+2026-04-23 [COMPLETED] Update REPORT sheet for the central team
+2026-04-22 [COMPLETED] Mark attendance an faculty and add SI and PI in UniConnect
+2026-04-22 [COMPLETED] Update daily reporting sheet
+2026-04-22 [COMPLETED] Update daily schedule report
+2026-04-22 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-22 [COMPLETED] Add session slots in the Django portal for attendance for NIAT App
+2026-04-21 [COMPLETED] Prepare club activity report.
+2026-04-21 [COMPLETED] Assisting in conducting the club activity smoothly without any disturbances.
+2026-04-21 [COMPLETED] Follow up of students to submit the signed sheet
+2026-04-21 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-21 [COMPLETED] Update daily reporting sheet
+2026-04-21 [COMPLETED] Update REPORT sheet for the central team
+2026-04-21 [COMPLETED] Mark attendance an faculty and add SI and PI in UniConnect
+2026-04-21 [COMPLETED] Update daily schedule report
+2026-04-21 [COMPLETED] Communication Message
+2026-04-21 [COMPLETED] Assets
+2026-04-20 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-20 [COMPLETED] Update daily reporting sheet
+2026-04-20 [COMPLETED] Communication Message
+2026-04-20 [COMPLETED] Mark attendance an faculty and add SI and PI in UniConnect
+2026-04-20 [COMPLETED] Update daily schedule report
+2026-04-20 [COMPLETED] Follow up of students to submit the signed sheet
+2026-04-20 [COMPLETED] Assets
+2026-04-20 [COMPLETED] Update daily report for central team
+2026-04-20 [COMPLETED] Communication Message
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — ● POC fills the event report the same day or latest by next morning
+2026-04-19 [COMPLETED] Take attendance of student in the workshop
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — BRIEF OF THIS MONTHS WORKSHOP -
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — This is your dry-run day. Walk through everything.
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — 200+ registrations 3 batches — plan across 2 days, confirm 2 instructors if
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — BATCH MANAGEMENT GUIDE
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — Task Owner Done
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — POC Event Report completed POC [ ]
+2026-04-19 [COMPLETED] Session Slots
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — Team [ ] All ops team members briefed on their D-Day roles [ ] Photographer / person
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — 2 batches across 2 days, or 3 batches in one day if space
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — POC (Event Lead) Overall ownership — timeline, team coordination, event report
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — Instructor Coordinator Briefing, schedule sharing, day-of support
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — Event Name Innovators Workshop
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — OVERVIEW
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — AIOT -
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — T-2 Days — Class & Space Allocation
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — D-DAY — EVENT EXECUTION
+2026-04-19 [COMPLETED] Assist in conducting the innovators workshop without any disturbance.
+2026-04-19 [COMPLETED] Update daily report for central team
+2026-04-19 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-19 [COMPLETED] Update daily reporting sheet
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — During the Session
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — Issues Faced Any problems during execution and how they were resolved
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — 2 batches, same day, same or different rooms
+2026-04-19 [COMPLETED] Assets
+2026-04-19 [COMPLETED] Mark attendance an faculty and add SI and PI in UniConnect
+2026-04-19 [COMPLETED] Innovator workshop event report
+2026-04-19 [COMPLETED] Update daily schedule report
+2026-04-19 [COMPLETED] AIOT Innovators Workshop — General
+2026-04-17 [COMPLETED] Update daily reporting sheet
+2026-04-17 [COMPLETED] Communication Message
+2026-04-17 [COMPLETED] Update daily report for central team
+2026-04-17 [COMPLETED] Mark attendance an faculty and add SI and PI in UniConnect
+2026-04-17 [COMPLETED] Create a click and share sheet to share attendance <75% to individual student along with other details
+2026-04-17 [COMPLETED] Update daily schedule report
+2026-04-16 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-16 [COMPLETED] Create a form to collect signed document of the attendance acknowledgement
+2026-04-16 [COMPLETED] Update daily schedule report
+2026-04-16 [COMPLETED] Add faculty data and success coach data and mark their attendance in UniConnect
+2026-04-16 [COMPLETED] Create click and share for sharing certificates of AI Agent 2 workshop
+2026-04-16 [COMPLETED] Update daily report for central team
+2026-04-16 [COMPLETED] Communication Message
+2026-04-16 [COMPLETED] Adhoc
+2026-04-16 [COMPLETED] Update daily reporting sheet
+2026-04-16 [COMPLETED] Create a click and share to share attendance <75% to individual student.
+2026-04-16 [COMPLETED] Assets
+2026-04-16 [COMPLETED] SEB trial test
+2026-04-16 [COMPLETED] Prepare a data of top 30 academic scorers.
+2026-04-15 [COMPLETED] Update off dates in django portal
+2026-04-15 [COMPLETED] GRIT malpractice verification
+2026-04-15 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-15 [COMPLETED] Assets
+2026-04-15 [COMPLETED] Communication Message
+2026-04-15 [COMPLETED] Update daily schedule report
+2026-04-14 [COMPLETED] Resolving student queries about marks and attendance percentage
+2026-04-14 [COMPLETED] Assets
+2026-04-14 [COMPLETED] Update daily schedule report
+2026-04-14 [COMPLETED] Communication Message
+2026-04-14 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-14 [COMPLETED] Update daily reporting sheet
+2026-04-14 [COMPLETED] Ad hoc
+2026-04-12 [COMPLETED] Attendance
+2026-04-12 [COMPLETED] Update daily schedule report
+2026-04-12 [COMPLETED] Update daily report for central team
+2026-04-12 [COMPLETED] Communication Message
+2026-04-12 [COMPLETED] Assets
+2026-04-12 [COMPLETED] Update daily reporting sheet
+2026-04-12 [COMPLETED] Session Slots
+2026-04-12 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-10 [COMPLETED] Assets
+2026-04-10 [COMPLETED] Add session attendance slot for Niat App in Django portal
+2026-04-10 [COMPLETED] Update daily report for central team
+2026-04-10 [COMPLETED] Communication Message
+2026-04-10 [COMPLETED] Create a click and share sheet for sending individual messages sharing certificates of Vector search master class
+2026-04-10 [COMPLETED] Generate certificates for the template shared by central team
+2026-04-10 [COMPLETED] Update daily schedule report
+2026-04-10 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-10 [COMPLETED] Update daily reporting sheet
+2026-04-09 [COMPLETED] Update daily reporting sheet
+2026-04-09 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-09 [COMPLETED] Prepare university report
+2026-04-09 [COMPLETED] Communication Message
+2026-04-09 [COMPLETED] Create a PTM sheet for signatures
+2026-04-09 [COMPLETED] Communication Message
+2026-04-09 [COMPLETED] Update daily report for central team
+2026-04-09 [COMPLETED] Internal data to the university
+2026-04-09 [COMPLETED] Create energise&encoyrage sheet for university
+2026-04-09 [COMPLETED] Assets
+2026-04-09 [COMPLETED] Update daily schedule report
+2026-04-08 [COMPLETED] Update daily report for central team
+2026-04-08 [COMPLETED] Update daily reporting sheet
+2026-04-08 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-08 [COMPLETED] Assets
+2026-04-08 [COMPLETED] Attendance
+2026-04-08 [COMPLETED] Update daily schedule report
+2026-04-07 [COMPLETED] Create a click and share sheet for sending individual messages for CP selected students
+2026-04-07 [COMPLETED] Student concern
+2026-04-07 [COMPLETED] Update daily reporting sheet
+2026-04-07 [COMPLETED] Ad hoc
+2026-04-07 [COMPLETED] Update daily report for central team
+2026-04-07 [COMPLETED] Ad hoc
+2026-04-07 [COMPLETED] Update daily schedule report
+2026-04-07 [COMPLETED] Click and Share to share attendance percentage(<75%) to students and parents individually
+2026-04-07 [COMPLETED] Communication Message
+2026-04-07 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-07 [COMPLETED] Ad hoc
+2026-04-06 [COMPLETED] Update daily report for central team
+2026-04-06 [COMPLETED] Update daily reporting sheet
+2026-04-06 [COMPLETED] create a consolidated sheet collecting internal1 marks
+2026-04-06 [COMPLETED] Update daily schedule report
+2026-04-06 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-06 [COMPLETED] Assets
+2026-04-06 [COMPLETED] Update daily reporting sheet
+2026-04-06 [COMPLETED] Communication Message
+2026-04-06 [COMPLETED] Create a click and share sheet for sending individual messages for CP selected students
+2026-04-05 [COMPLETED] Update report of central team
+2026-04-05 [COMPLETED] Attendance
+2026-04-05 [COMPLETED] Update daily schedule report
+2026-04-05 [COMPLETED] Communication Message
+2026-04-05 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-05 [COMPLETED] Create a click and share sheet to share CIE 1 marks to students individually
+2026-04-05 [COMPLETED] Create a sheet with 1st internal marks for announcement
+2026-04-05 [COMPLETED] Assets
+2026-04-03 [COMPLETED] Update the consolidated payment sheet shared by central team
+2026-04-03 [COMPLETED] Assets
+2026-04-03 [COMPLETED] Create a click and share sheet for the SCs regarding parent app
+2026-04-03 [COMPLETED] Update daily reporting sheet
+2026-04-03 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-03 [COMPLETED] Update daily schedule report
+2026-04-03 [COMPLETED] Update daily report for central team
+2026-04-03 [COMPLETED] Communication Message
+2026-04-03 [COMPLETED] Conduct interviews for students who registered to join the sports and media Club.
+2026-04-02 [COMPLETED] Update daily reporting sheet
+2026-04-02 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-02 [COMPLETED] Adhoc
+2026-04-02 [COMPLETED] Update daily schedule report
+2026-04-02 [COMPLETED] create a click n share sheet to share feedback form of workshop to students who haven't filled the form
+2026-04-02 [COMPLETED] Conduct interviews for students who registered to join the sports and media Club.
+2026-04-02 [COMPLETED] Communication Message
+2026-04-02 [COMPLETED] Communication Message
+2026-04-01 [COMPLETED] Update the consolidated payment sheet shared by central team
+2026-04-01 [COMPLETED] Assets
+2026-04-01 [COMPLETED] Drafted and shared necessary announcements with students
+2026-04-01 [COMPLETED] Update daily schedule report
+2026-04-01 [COMPLETED] Update the sheet with exam dates and holidays of April and May for central team
+2026-04-01 [COMPLETED] cross verify absentees list of GRIT exam
+2026-03-31 [COMPLETED] Update session wise attendance for students submitting medical records
+2026-03-31 [COMPLETED] Communication Message
+2026-03-31 [COMPLETED] Update the consolidated payment sheet shared by central team
+2026-03-31 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-31 [COMPLETED] Assets
+2026-03-31 [COMPLETED] Add session attendance slots for MyNiat App in Django portal
+2026-03-31 [COMPLETED] Calculate attendance percentage of students <75% for university
+2026-03-31 [COMPLETED] Update attendance for GRIT in the sheet shared by central team
+2026-03-31 [COMPLETED] Update daily reporting sheet
+2026-03-31 [COMPLETED] Update daily schedule report
+2026-03-30 [COMPLETED] Upload both roaster images and sheets to GRIT main sheet.
+2026-03-30 [COMPLETED] Giving campus tour for parents visiting campus for new admission
+2026-03-30 [COMPLETED] Assets
+2026-03-30 [COMPLETED] Communication Message
+2026-03-30 [COMPLETED] Update daily reporting sheet
+2026-03-30 [COMPLETED] Update the issue faced in GRIT exam.
+2026-03-30 [COMPLETED] Update roaster sheet with attendance of GRIT
+2026-03-30 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-30 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-30 [COMPLETED] Communication Message
+2026-03-30 [COMPLETED] Assets
+2026-03-30 [COMPLETED] Invigilation
+2026-03-30 [COMPLETED] Create a Roaster sheet for central team for mail purpose
+2026-03-30 [COMPLETED] Adhoc
+2026-03-30 [COMPLETED] Update the consolidated payment sheet shared by central team
+2026-03-30 [COMPLETED] Session Slots
+2026-03-30 [COMPLETED] Update daily schedule report
+2026-03-30 [COMPLETED] Invigilation
+2026-03-29 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-29 [COMPLETED] Create a Roaster sheet for central team
+2026-03-29 [COMPLETED] Attendance
+2026-03-29 [COMPLETED] Create seating arrangement sheet for GRIT exam
+2026-03-29 [COMPLETED] Communication Message
+2026-03-29 [COMPLETED] Create roaster for attendance on GRIT exam
+2026-03-29 [COMPLETED] GRIT Exam preparation
+2026-03-29 [COMPLETED] Update daily reporting sheet
+2026-03-25 [COMPLETED] Communication Message
+2026-03-25 [COMPLETED] Update the supplementary marks data to the university
+2026-03-25 [COMPLETED] Prepare 2 week report for the university
+2026-03-25 [COMPLETED] Attendance
+2026-03-25 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-25 [COMPLETED] Update daily reporting sheet
+2026-03-24 [COMPLETED] Communication Message
+2026-03-24 [COMPLETED] Invigilation
+2026-03-24 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-24 [COMPLETED] Attendance
+2026-03-24 [COMPLETED] Update daily reporting sheet
+2026-03-23 [COMPLETED] Assets
+2026-03-23 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-23 [COMPLETED] Sheet Update
+2026-03-23 [COMPLETED] Ad hoc
+2026-03-23 [COMPLETED] Communication Message
+2026-03-23 [COMPLETED] Skill assessment
+2026-03-23 [COMPLETED] Update daily reporting sheet
+2026-03-23 [COMPLETED] Update daily reporting sheet
+2026-03-23 [COMPLETED] Communication Message
+2026-03-22 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-22 [COMPLETED] Update daily schedule report
+2026-03-22 [COMPLETED] Communication Message
+2026-03-22 [COMPLETED] Ad hoc
+2026-03-22 [COMPLETED] Assets
+2026-03-22 [COMPLETED] Update daily reporting sheet
+2026-03-22 [COMPLETED] Sheet Update
+2026-03-19 [COMPLETED] Share the student data with central team.
+2026-03-19 [COMPLETED] Session Slots
+2026-03-19 [COMPLETED] Update the fee payment status
+2026-03-19 [COMPLETED] Update daily reporting sheet
+2026-03-17 [COMPLETED] Update daily reporting sheet
+2026-03-17 [COMPLETED] Communication Message
+2026-03-17 [COMPLETED] Prepare 1st SEM report for the university
+2026-03-17 [COMPLETED] Update daily schedule report
+2026-03-17 [COMPLETED] Share student data to central team for mock assessment
+2026-03-17 [COMPLETED] Communication Message
+2026-03-17 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-17 [COMPLETED] Assets
+2026-03-17 [COMPLETED] Follow up with students to return 10th marks cards.
+2026-03-16 [COMPLETED] Assets
+2026-03-16 [COMPLETED] Coordinate and assist in conducting influencer workshop
+2026-03-16 [COMPLETED] Update daily reporting sheet
+2026-03-16 [COMPLETED] Follow up with students to return 10th marks cards.
+2026-03-16 [COMPLETED] Follow up on MurfAI registration
+2026-03-16 [COMPLETED] Update daily schedule report
+2026-03-16 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-15 [COMPLETED] Assets
+2026-03-15 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-15 [COMPLETED] Communication Message
+2026-03-15 [COMPLETED] Conducted invigilation for the supplementary examination.
+2026-03-15 [COMPLETED] Update daily schedule report
+2026-03-15 [COMPLETED] Calculate student's attendance percentage subject wise
+2026-03-11 [COMPLETED] Assets
+2026-03-11 [COMPLETED] Communication Message
+2026-03-11 [COMPLETED] Uniconnect
+2026-03-11 [COMPLETED] Created a click-and-share sheet to send individual messages to students regarding the Makers Conclave re-exam.
+2026-03-11 [COMPLETED] Update daily schedule report
+2026-03-11 [COMPLETED] Attendance
+2026-03-11 [COMPLETED] Communication Message
+2026-03-11 [COMPLETED] Update daily reporting sheet
+2026-03-11 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-11 [COMPLETED] Update the phone number to the sheet shared by central team
+2026-03-11 [COMPLETED] Communication Message
+2026-03-11 [COMPLETED] Update daily reporting sheet
+2026-03-11 [COMPLETED] Makers conclave exam
+2026-03-11 [COMPLETED] Conduct interviews for students who registered to join the Cultural Club.
+2026-03-10 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-10 [COMPLETED] Update daily schedule report
+2026-03-10 [COMPLETED] Update daily reporting sheet
+2026-03-10 [COMPLETED] Conduct interviews for students who registered to join the Cultural Club.
+2026-03-10 [COMPLETED] Update daily report shared by central team
+2026-03-10 [COMPLETED] Assets
+2026-03-09 [COMPLETED] Fee Verification
+2026-03-09 [COMPLETED] Conducte interviews for students who registered to join the Cultural Club.
+2026-03-09 [COMPLETED] Assets
+2026-03-09 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-09 [COMPLETED] Update daily schedule report
+2026-03-08 [COMPLETED] Communication Message
+2026-03-08 [COMPLETED] Update daily schedule report
+2026-03-08 [COMPLETED] Invigilating the supplementary exam.
+2026-03-08 [COMPLETED] Calculate student's attendance percentage subject wise
+2026-03-08 [COMPLETED] Upload tomorrow’s session in campus admin portal
+2026-03-08 [COMPLETED] Update daily reporting sheet
+2026-03-08 [COMPLETED] Assets
+2026-03-08 [COMPLETED] Prepare a report on the Women's Day Event conducted for the university.
+2026-03-08 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-06 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-06 [COMPLETED] Update daily reporting sheet
+2026-03-06 [COMPLETED] Weekly Report
+2026-03-06 [COMPLETED] Assets
+2026-03-06 [COMPLETED] Events
+2026-03-06 [COMPLETED] Update daily schedule report
+2026-03-06 [COMPLETED] Communication Message
+2026-03-06 [COMPLETED] Session Slots
+2026-03-06 [COMPLETED] Update daily schedule report
+2026-03-05 [COMPLETED] Assets
+2026-03-05 [COMPLETED] Skill assessment
+2026-03-05 [COMPLETED] Communication Message
+2026-03-05 [COMPLETED] Update daily reporting sheet
+2026-03-05 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-04 [COMPLETED] Communication Message
+2026-03-04 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-04 [COMPLETED] Actively assisted in organizing and conducting the 5.0 Innovation Sprint program for the inauguration of the 5.0 Lab.
+2026-03-04 [COMPLETED] Update daily reporting sheet
+2026-03-04 [COMPLETED] Update daily schedule report
+2026-03-04 [COMPLETED] Assets
+2026-03-03 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-03 [COMPLETED] Assets
+2026-03-03 [COMPLETED] Update daily schedule report
+2026-03-03 [COMPLETED] Communication Message
+2026-03-03 [COMPLETED] Update daily reporting sheet
+2026-03-03 [COMPLETED] Supplementary exam details
+2026-03-01 [COMPLETED] Assets
+2026-03-01 [COMPLETED] Calculate subject wise attendance percentage of the students until 28/2.
+2026-03-01 [COMPLETED] Communication Message
+2026-03-01 [COMPLETED] Drafted and shared necessary announcements with students
+2026-03-01 [COMPLETED] Update daily schedule report
+2026-03-01 [COMPLETED] Update daily reporting sheet
+2026-02-27 [COMPLETED] Session Slots
+2026-02-27 [COMPLETED] Assets
+2026-02-27 [COMPLETED] Prepare weekly report for the university
+2026-02-27 [COMPLETED] Update daily schedule report
+2026-02-27 [COMPLETED] Attendance
+2026-02-27 [COMPLETED] Fee documentation
+2026-02-27 [COMPLETED] Communication Message
+2026-02-27 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-27 [COMPLETED] Update daily reporting sheet
+2026-02-26 [COMPLETED] Invigilated the CP exam during the first half.
+2026-02-26 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-26 [COMPLETED] Update daily reporting sheet
+2026-02-26 [COMPLETED] Communication Message
+2026-02-26 [COMPLETED] Assets
+2026-02-26 [COMPLETED] Update daily schedule report
+2026-02-26 [COMPLETED] Resolved issues that arose during the CP exam and marked attendance.
+2026-02-25 [COMPLETED] campus admin portal
+2026-02-25 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-25 [COMPLETED] Update daily reporting sheet
+2026-02-25 [COMPLETED] Create a form for registration for the science day celebration.
+2026-02-25 [COMPLETED] Communication Message
+2026-02-25 [COMPLETED] Update daily schedule report
+2026-02-25 [COMPLETED] Assets
+2026-02-24 [COMPLETED] university form
+2026-02-24 [COMPLETED] Ad hoc
+2026-02-24 [COMPLETED] Update daily reporting sheet
+2026-02-24 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-24 [COMPLETED] Communication Message
+2026-02-24 [COMPLETED] Assets
+2026-02-24 [COMPLETED] Update daily schedule report
+2026-02-23 [COMPLETED] Create a form to collect education loan details for students.
+2026-02-23 [COMPLETED] Communication Message
+2026-02-23 [COMPLETED] Attendance
+2026-02-23 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-23 [COMPLETED] Update daily schedule report
+2026-02-23 [COMPLETED] Student management
+2026-02-23 [COMPLETED] Update fee payment sheet
+2026-02-23 [COMPLETED] Ad hoc
+2026-02-23 [COMPLETED] Assets
+2026-02-23 [COMPLETED] Update daily reporting sheet
+2026-02-22 [COMPLETED] Attendance
+2026-02-22 [COMPLETED] Assets
+2026-02-22 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-22 [COMPLETED] Update daily reporting sheet
+2026-02-22 [COMPLETED] Update drop out sheet shared by central team
+2026-02-22 [COMPLETED] Communication Message
+2026-02-19 [COMPLETED] Update the Bonafide Details Sheet shared by central team
+2026-02-19 [COMPLETED] Update daily reporting sheet
+2026-02-19 [COMPLETED] Prepare weekly report for the university
+2026-02-19 [COMPLETED] Communication Message
+2026-02-19 [COMPLETED] Assets
+2026-02-19 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-17 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-17 [COMPLETED] Update daily reporting sheet
+2026-02-17 [COMPLETED] Assets
+2026-02-17 [COMPLETED] Click and Share
+2026-02-17 [COMPLETED] Communication Message
+2026-02-16 [COMPLETED] Skill assessment
+2026-02-16 [COMPLETED] Update daily routine sheet
+2026-02-16 [COMPLETED] Communication Message
+2026-02-16 [COMPLETED] Attendance
+2026-02-16 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-16 [COMPLETED] Assets
+2026-02-15 [COMPLETED] Prepare weekly report for the university
+2026-02-15 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-15 [COMPLETED] Attendance
+2026-02-15 [COMPLETED] Communication Message
+2026-02-15 [COMPLETED] Assets
+2026-02-15 [COMPLETED] Drafted and shared necessary announcements with students
+2026-02-15 [COMPLETED] SEB trial test
+2026-02-15 [COMPLETED] Update daily reporting sheet
+2026-02-12 [COMPLETED] Attendance
+2026-02-12 [COMPLETED] Session Slots
+2026-02-12 [COMPLETED] Assets
+2026-02-12 [COMPLETED] Fee documentation
+2026-02-12 [COMPLETED] Update daily reporting sheet
+2026-02-12 [COMPLETED] Drafted and shared necessary announcements with students.
+2026-02-12 [COMPLETED] Communication Message
+2026-02-11 [COMPLETED] Click and Share
+2026-02-11 [COMPLETED] Skill assessment syllabus
+2026-02-11 [COMPLETED] Reminder announcement of module quiz for students
+2026-02-11 [COMPLETED] Delivered the introduction and vote of thanks for the guest during the Tech Talk session.
+2026-02-11 [COMPLETED] Update daily reporting sheet
+2026-02-11 [COMPLETED] timetable
+2026-02-11 [COMPLETED] Assets
+2026-02-11 [COMPLETED] SEB related
+2026-02-11 [COMPLETED] Ad hoc
+2026-02-11 [COMPLETED] Create form to collect data of speaker for podcast
+2026-02-11 [COMPLETED] MyNiat APP
+2026-02-11 [COMPLETED] campus admin portal
+2026-02-11 [COMPLETED] Attendance
+2026-02-11 [COMPLETED] Communication Message
+2026-02-11 [COMPLETED] Share tomorrow’s timetable and clearly communicate all schedule changes to the team
+2026-02-10 [COMPLETED] Form
+2026-02-10 [COMPLETED] Communication Message
+2026-02-10 [COMPLETED] MyNiat APP
+2026-02-10 [COMPLETED] Admin portal
+2026-02-10 [COMPLETED] Update daily reporting sheet
+2026-02-10 [COMPLETED] Create a sheet with section wise student college mail ids.
+2026-02-10 [COMPLETED] Click and Share
+2026-02-10 [COMPLETED] Share tomorrow’s timetable and clearly communicate all schedule changes
+2026-02-10 [COMPLETED] Assets
+2026-02-10 [COMPLETED] Updating mail id
+2026-02-10 [COMPLETED] Ad hoc
+2026-02-06 [COMPLETED] Update schedule daily sheet
+2026-02-06 [COMPLETED] Hostel Visit
+2026-02-06 [COMPLETED] Take attendance of student as success coach is on leave.
+2026-02-06 [COMPLETED] Communication Message
+2026-02-06 [COMPLETED] Session Slots
+2026-02-06 [COMPLETED] Attendance
+2026-02-06 [COMPLETED] Prepare weekly report for the university
+2026-02-06 [COMPLETED] Assets
+2026-02-06 [COMPLETED] Update daily reporting sheet
+2026-02-05 [COMPLETED] Update schedule daily sheet
+2026-02-05 [COMPLETED] Communication Message
+2026-02-05 [COMPLETED] Campus Visit Coordination
+2026-02-05 [COMPLETED] Update daily reporting sheet
+2026-02-05 [COMPLETED] Attendance
+2026-02-05 [COMPLETED] Syllabus completion data
+2026-02-05 [COMPLETED] Assets
+2026-02-04 [COMPLETED] Assets
+2026-02-04 [COMPLETED] Attendance
+2026-02-04 [COMPLETED] Create a form to collect passport details of students.
+2026-02-04 [COMPLETED] Communication Message
+2026-02-04 [COMPLETED] Update schedule daily sheet
+2026-02-04 [COMPLETED] Fee documentation
+2026-02-04 [COMPLETED] Attendance data loading from central team
+2026-02-04 [COMPLETED] Update daily reporting sheet
+2026-02-02 [COMPLETED] Attendance loading data
+2026-02-02 [COMPLETED] Assets
+2026-02-02 [COMPLETED] Update fee payment tracker sheet by university and central team
+2026-02-02 [COMPLETED] Update daily reporting sheet
+2026-02-02 [COMPLETED] Communication Message
+2026-02-02 [COMPLETED] Attendance
+2026-02-01 [COMPLETED] Communication Message
+2026-02-01 [COMPLETED] Attendance
+2026-02-01 [COMPLETED] university fee sheet
+2026-02-01 [COMPLETED] Update daily reporting sheet
+2026-02-01 [COMPLETED] Assets
+2026-02-01 [COMPLETED] Fee documentation
+2026-01-30 [COMPLETED] Fee documentation
+2026-01-30 [COMPLETED] Update daily reporting sheet
+2026-01-30 [COMPLETED] Contact students individually and collect payment proofs to update the unreconciled data.
+2026-01-30 [COMPLETED] Attendance
+2026-01-30 [COMPLETED] Communication Message
+2026-01-30 [COMPLETED] Weekly Report
+2026-01-30 [COMPLETED] Fee documentation
+2026-01-30 [COMPLETED] Sheet Update
+2026-01-30 [COMPLETED] Session Slots
+2026-01-30 [COMPLETED] Assets

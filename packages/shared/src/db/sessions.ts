@@ -113,6 +113,18 @@ export async function validateSession(token: string): Promise<SessionUser | null
             } catch { /* keep their assigned universities on failure */ }
         }
 
+        // Facilities/Finance operate centrally across every campus (budgeting +
+        // petty cash), so they too see ALL universities — without the extra
+        // full-access feature grants.
+        if (!user.full_access && user.role === 'FACILITIES') {
+            try {
+                const all = await db.query(
+                    `SELECT id, name, is_team FROM universities WHERE status = 'ACTIVE' ORDER BY name`,
+                );
+                if (all.rows.length) user.universities = all.rows;
+            } catch { /* keep their assigned universities on failure */ }
+        }
+
         return user;
     } catch (e: any) {
         console.error('[VALIDATE_SESSION_ERROR_FALLBACK_TRIGGERED]', e.message);

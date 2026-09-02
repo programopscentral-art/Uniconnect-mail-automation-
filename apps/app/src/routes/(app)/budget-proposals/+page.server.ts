@@ -6,8 +6,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     const status = url.searchParams.get('status') || undefined;
     const mine = url.searchParams.get('mine') === 'true';
 
-    // Scoping for the load function — full-access users (Central Team) see every university.
-    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER' || (locals.user as any).full_access === true;
+    // Scoping — full-access (Central Team) and Facilities/CMA finance see every university.
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER' || locals.user.role === 'FACILITIES' || (locals.user as any).full_access === true;
     const isSET = locals.user.role === 'SET_REVIEWER';
 
     let effectiveUniversityId = university_id;

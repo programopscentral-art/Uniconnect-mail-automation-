@@ -162,7 +162,7 @@ export async function getPettyCashRequests(filters: {
 
     // View-specific filters
     switch (filters.view) {
-        case 'approvals': where.push(`r.status = 'SUBMITTED'`); break;
+        case 'approvals': where.push(`r.status IN ('SUBMITTED','L1_APPROVED')`); break;
         case 'disbursement': where.push(`r.status = 'APPROVED'`); break;
         case 'bills': where.push(`r.status IN ('DISBURSED','BILL_SUBMITTED')`); break;
         case 'settlement': where.push(`r.status IN ('BILL_VERIFIED','DISBURSED','BILL_SUBMITTED')`); break;
@@ -374,7 +374,7 @@ export async function getPettyCashDashboardStats(university_id?: string) {
             COALESCE(SUM(CASE WHEN r.status IN ('DISBURSED','BILL_SUBMITTED','BILL_VERIFIED')
                 THEN (SELECT COALESCE(SUM(amount_paid),0) FROM petty_cash_disbursements d WHERE d.request_id = r.id)
                 ELSE 0 END), 0) AS outstanding_amount,
-            COUNT(*) FILTER (WHERE r.status = 'SUBMITTED') AS awaiting_approval,
+            COUNT(*) FILTER (WHERE r.status IN ('SUBMITTED','L1_APPROVED')) AS awaiting_approval,
             COUNT(*) FILTER (WHERE r.status IN ('DISBURSED','BILL_SUBMITTED') AND r.bill_due_on IS NOT NULL AND r.bill_due_on < CURRENT_DATE) AS bills_overdue,
             COUNT(*) FILTER (WHERE r.status = 'APPROVED') AS awaiting_disbursement
          FROM petty_cash_requests r ${w}`,
