@@ -410,7 +410,14 @@
             {/if}
 
           {:else}
-            <p class="text-sm text-gray-400">Waiting on {canFin ? "the requester" : "finance"} for the next step.</p>
+            <p class="text-sm text-gray-400">
+              {#if req.status === "SUBMITTED"}Waiting for Satish's approval.
+              {:else if req.status === "APPROVED"}Approved — waiting for finance to disburse the money.
+              {:else if req.status === "DISBURSED"}Paid out — waiting for the requester to submit the bill.
+              {:else if req.status === "BILL_SUBMITTED"}Bill submitted — waiting for finance to verify it.
+              {:else if req.status === "BILL_VERIFIED"}Bill verified — waiting for finance to settle & close.
+              {:else}Waiting for the next step.{/if}
+            </p>
           {/if}
 
           {#if data.caps.isAdmin}

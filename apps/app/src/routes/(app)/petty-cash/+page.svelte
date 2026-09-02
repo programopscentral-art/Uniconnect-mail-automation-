@@ -91,20 +91,14 @@
     { key: "BILL_VERIFIED", label: "To Settle", view: "settlement", cls: "text-cyan-600" },
     { key: "SETTLED", label: "Settled", view: "all", cls: "text-emerald-600" },
   ];
-  const BP_PIPELINE = [
-    { key: "SUBMITTED", label: "Submitted", cls: "text-amber-600" },
-    { key: "UNDER_REVIEW", label: "Under Review", cls: "text-violet-600" },
-    { key: "APPROVED_L1", label: "CMA Approved", cls: "text-teal-600" },
-    { key: "APPROVED", label: "Approved", cls: "text-emerald-600" },
-    { key: "CHANGES_REQUESTED", label: "Changes", cls: "text-orange-600" },
-    { key: "REPORT_SUBMITTED", label: "Report In", cls: "text-blue-600" },
-  ];
+  // The SUBMITTED requests that need Satish's decision — surfaced directly.
+  const pendingApprovals = $derived((data.requests as any[]).filter((r) => r.status === "SUBMITTED"));
 
   const tiles = $derived([
-    { label: "Outstanding", sub: "Disbursed, not settled", value: money(data.stats.outstanding_amount), accent: "text-indigo-600 dark:text-indigo-400", ring: "ring-indigo-500/20" },
     { label: "PC Approvals", sub: "Awaiting a decision", value: String(data.stats.awaiting_approval), accent: "text-amber-600 dark:text-amber-400", ring: "ring-amber-500/20" },
+    { label: "To Disburse", sub: "Approved, not paid", value: String(pcStage["APPROVED"] || 0), accent: "text-teal-600 dark:text-teal-400", ring: "ring-teal-500/20" },
+    { label: "Outstanding", sub: "Disbursed, not settled", value: money(data.stats.outstanding_amount), accent: "text-indigo-600 dark:text-indigo-400", ring: "ring-indigo-500/20" },
     { label: "Bills Overdue", sub: "Past the deadline", value: String(data.stats.bills_overdue), accent: "text-red-600 dark:text-red-400", ring: "ring-red-500/20" },
-    { label: "Budget Reviews", sub: "Proposals need you", value: String(data.budget?.needs_review ?? 0), accent: "text-violet-600 dark:text-violet-400", ring: "ring-violet-500/20" },
   ]);
 
   function ageDays(due: string | null): number | null {
@@ -220,9 +214,9 @@
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="space-y-1">
           <div class="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">
-            <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>Budget &amp; Finance Ops
+            <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>Petty Cash Operations
           </div>
-          <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Finance Console</h1>
+          <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Petty Cash Console</h1>
         </div>
         <a href="/petty-cash/create" class="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>New Request
@@ -250,75 +244,57 @@
       </div>
 
       {#if view === "overview"}
-        <!-- Command center: both flows + where each item sits -->
-        <div class="grid lg:grid-cols-2 gap-6">
-          <!-- Petty cash pipeline -->
-          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm p-6">
-            <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Petty Cash Flow</h2>
-              <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{(data.requests as any[]).length} total</span>
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-              {#each PC_PIPELINE as s}
-                <button onclick={() => (view = s.view)} class="text-left p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 hover:border-indigo-300 transition-all">
-                  <p class="text-2xl font-black {s.cls} tabular-nums">{pcStage[s.key] || 0}</p>
-                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-1 leading-tight">{s.label}</p>
-                </button>
-              {/each}
-            </div>
-          </div>
-          <!-- Budget proposals pipeline -->
-          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm p-6">
-            <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Budget Proposals</h2>
-              <a href="/budget-proposals" class="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">Open →</a>
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-              {#each BP_PIPELINE as s}
-                <div class="p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800">
-                  <p class="text-2xl font-black {s.cls} tabular-nums">{data.budget?.counts?.[s.key] || 0}</p>
-                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-1 leading-tight">{s.label}</p>
-                </div>
-              {/each}
-            </div>
-            {#if data.budget?.pending_value}
-              <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-4">Pending value · {money(data.budget.pending_value)}</p>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Needs you now -->
+        <!-- Petty-cash pipeline (full width) -->
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm p-6">
-          <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Needs You Now</h2>
-          <div class="grid sm:grid-cols-2 gap-4">
-            <button onclick={() => (view = "approvals")} class="flex items-center justify-between p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:border-amber-400 transition-all">
-              <div class="text-left"><p class="font-black text-gray-900 dark:text-white">Petty cash approvals</p><p class="text-[11px] text-gray-400">Requests awaiting your decision</p></div>
-              <span class="text-2xl font-black text-amber-600 tabular-nums">{data.stats.awaiting_approval}</span>
-            </button>
-            <a href="/budget-proposals" class="flex items-center justify-between p-4 rounded-2xl bg-violet-500/5 border border-violet-500/20 hover:border-violet-400 transition-all">
-              <div class="text-left"><p class="font-black text-gray-900 dark:text-white">Budget proposal reviews</p><p class="text-[11px] text-gray-400">Proposals awaiting review</p></div>
-              <span class="text-2xl font-black text-violet-600 tabular-nums">{data.budget?.needs_review ?? 0}</span>
-            </a>
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Petty Cash Flow</h2>
+            <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{(data.requests as any[]).length} total</span>
+          </div>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {#each PC_PIPELINE as s}
+              <button onclick={() => (view = s.view)} class="text-left p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 hover:border-indigo-300 transition-all">
+                <p class="text-2xl font-black {s.cls} tabular-nums">{pcStage[s.key] || 0}</p>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-1 leading-tight">{s.label}</p>
+              </button>
+            {/each}
           </div>
         </div>
 
-        <!-- Recent budget activity -->
-        {#if data.budget?.recent?.length}
-          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div class="p-5 border-b border-gray-100 dark:border-slate-800"><h2 class="text-[11px] font-black text-gray-400 uppercase tracking-widest">Recent Budget Proposals</h2></div>
-            <div class="divide-y divide-gray-50 dark:divide-slate-800/60">
-              {#each data.budget.recent as b}
-                <a href={`/budget-proposals/${b.id}`} class="flex items-center justify-between px-6 py-3.5 hover:bg-indigo-50/40 dark:hover:bg-slate-800/40">
-                  <div class="min-w-0"><p class="font-bold text-gray-900 dark:text-white truncate">{b.title}</p><p class="text-[11px] text-gray-400">{b.university_name}</p></div>
-                  <div class="flex items-center gap-4 shrink-0">
-                    <span class="font-black text-gray-900 dark:text-white tabular-nums text-sm">{money(b.estimated_total_budget)}</span>
-                    <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">{(b.status || "").replace(/_/g, " ")}</span>
-                  </div>
-                </a>
-              {/each}
+        <!-- Pending approvals — surfaced directly so the approver sees the list without switching tabs -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div class="p-5 flex items-center justify-between border-b border-gray-100 dark:border-slate-800">
+            <div>
+              <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Awaiting Approval</h2>
+              <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                {#if data.caps.canApprove}Open a request to approve, send back, or reject{:else}Only Satish can approve these{/if}
+              </p>
             </div>
+            <span class="text-2xl font-black text-amber-600 tabular-nums">{pendingApprovals.length}</span>
           </div>
-        {/if}
+          <div class="divide-y divide-gray-50 dark:divide-slate-800/60">
+            {#each pendingApprovals as r (r.id)}
+              <button onclick={() => goto(`/petty-cash/${r.id}`)} class="w-full text-left flex items-center justify-between gap-4 px-6 py-4 hover:bg-amber-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-[11px] font-black text-indigo-500">{r.request_no}</span>
+                    <span class="inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest {stt(r.status).cls}">{stt(r.status).label}</span>
+                  </div>
+                  <p class="font-bold text-gray-900 dark:text-white truncate mt-0.5">{r.purpose}</p>
+                  <p class="text-[11px] text-gray-400">{r.university_name} · {r.requester_name || r.requester_email}</p>
+                </div>
+                <div class="text-right shrink-0">
+                  <p class="font-black text-gray-900 dark:text-white tabular-nums">{money(r.amount_requested)}</p>
+                  <span class="text-[10px] font-black text-amber-600 uppercase tracking-widest">{data.caps.canApprove ? "Review →" : "Open →"}</span>
+                </div>
+              </button>
+            {:else}
+              <div class="px-6 py-14 text-center">
+                <p class="text-sm font-black text-gray-400 uppercase tracking-widest">All caught up</p>
+                <p class="text-[11px] text-gray-400 mt-1">No petty-cash requests are waiting for approval.</p>
+              </div>
+            {/each}
+          </div>
+        </div>
 
       {:else if view === "eligibility"}
         <!-- Eligibility register -->

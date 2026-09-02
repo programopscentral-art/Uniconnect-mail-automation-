@@ -35,41 +35,11 @@ export const load: PageServerLoad = async ({ locals }) => {
         admin ? listPettyCashEligibility(university_id) : Promise.resolve([]),
     ]);
 
-    // Finance command-center: pull Budget Proposals alongside Petty Cash so the
-    // overview shows every finance flow and where each item sits.
-    let budget: any = null;
-    if (finance) {
-        const uw = university_id ? `WHERE university_id = $1` : '';
-        const args = university_id ? [university_id] : [];
-        const counts = await db.query(`SELECT status, COUNT(*)::int AS n FROM budget_proposals ${uw} GROUP BY status`, args);
-        const totals = await db.query(
-            `SELECT
-                COUNT(*) FILTER (WHERE status IN ('SUBMITTED','UNDER_REVIEW'))::int AS needs_review,
-                COUNT(*) FILTER (WHERE status = 'APPROVED_L1')::int AS l1_approved,
-                COALESCE(SUM(estimated_total_budget) FILTER (WHERE status IN ('SUBMITTED','UNDER_REVIEW','APPROVED_L1')), 0) AS pending_value
-             FROM budget_proposals ${uw}`, args);
-        const recent = await db.query(
-            `SELECT p.id, p.title, p.status, p.estimated_total_budget, p.updated_at, COALESCE(u.short_name, u.name) AS university_name
-               FROM budget_proposals p JOIN universities u ON u.id = p.university_id
-               ${university_id ? 'WHERE p.university_id = $1' : ''}
-               ORDER BY p.updated_at DESC LIMIT 6`, args);
-        const countMap: Record<string, number> = {};
-        for (const r of counts.rows) countMap[r.status] = r.n;
-        budget = {
-            counts: countMap,
-            needs_review: totals.rows[0].needs_review,
-            l1_approved: totals.rows[0].l1_approved,
-            pending_value: Number(totals.rows[0].pending_value) || 0,
-            recent: recent.rows,
-        };
-    }
-
     return {
         requests,
         stats,
         eligibility,
         universities,
-        budget,
         me: { id: user.id, name: user.name, email: user.email, role: user.role },
         caps: { isAdmin: admin, isFinance: finance, canApprove: isApprover(user) },
     };
