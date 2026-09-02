@@ -123,6 +123,7 @@ export async function updateUser(id: string, data: {
     university_ids?: string[];  // New: array of university IDs
     is_active?: boolean;
     presence_mode?: 'AUTO' | 'MANUAL';
+    full_access?: boolean;
 }) {
     // Extract university_ids before updating the user table
     const { university_ids, ...userData } = data;

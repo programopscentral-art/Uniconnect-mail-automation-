@@ -179,11 +179,12 @@
   let previewType = $state<string | null>(null);
 
   function openPreview(file: any) {
-    let url = file.file_url;
-    // Fallback to Base64 if available for cross-laptop visibility
-    if (file.file_content && file.file_type?.startsWith('image')) {
-        url = `data:${file.file_type};base64,${file.file_content}`;
-    } else if (url.startsWith("/uploads/")) {
+    // Prefer the DB-backed serve route (survives redeploys); fall back to the
+    // legacy disk URL only when no stored content exists.
+    let url = file.file_content
+      ? `/api/budget-proposals/attachment/${file.id}`
+      : (file.file_url || "");
+    if (!file.file_content && url.startsWith("/uploads/")) {
         url = url.replace("/uploads/", "/api/uploads/");
     }
     previewUrl = url;

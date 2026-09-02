@@ -47,7 +47,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
         const result = await db.query(
             `
         SELECT 
-            u.id, u.email, u.role, u.university_id, u.name, u.is_active,
+            u.id, u.email, u.role, u.university_id, u.name, u.is_active, u.full_access,
             u.display_name, u.phone, u.age, u.bio, u.profile_picture_url, u.presence_mode,
             COALESCE(
                 (
@@ -87,6 +87,20 @@ export async function validateSession(token: string): Promise<SessionUser | null
                 if (!user.permissions.includes(feat)) {
                     user.permissions.push(feat);
                 }
+            }
+        }
+
+        // Per-user Full Access (operational): grant every operational feature on
+        // top of the role, excluding the sensitive admin surfaces.
+        if (user.full_access && Array.isArray(user.permissions)) {
+            const OPS_FEATURES = [
+                'dashboard', 'tasks', 'students', 'analytics', 'templates', 'campaigns',
+                'assessments', 'mail-logs', 'communication-tasks', 'budget-proposals',
+                'petty-cash', 'academic-operations', 'meetings', 'sheets', 'ops-dashboard',
+                'fee-collection', 'ops-os-report', 'ops-os-review', 'ops-os-operations', 'ops-os-pm-inbox',
+            ];
+            for (const feat of OPS_FEATURES) {
+                if (!user.permissions.includes(feat)) user.permissions.push(feat);
             }
         }
 

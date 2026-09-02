@@ -44,6 +44,7 @@
   let email = $state("");
   let name = $state("");
   let role = $state<string>("UNIVERSITY_OPERATOR");
+  let fullAccess = $state(false);
   let universityIds = $state<string[]>([]); // Changed from single string to array
   let editingUserId = $state<string | null>(null);
   let phone = $state("");
@@ -89,6 +90,7 @@
         bio,
         display_name: displayName || name,
         role,
+        full_access: fullAccess,
         university_ids:
           role !== "ADMIN" && role !== "PROGRAM_OPS"
             ? [selectedTeamId, ...universityIds].filter(Boolean)
@@ -132,6 +134,7 @@
     bio = user.bio || "";
     displayName = user.display_name || "";
     role = user.role;
+    fullAccess = user.full_access || false;
 
     // Separate teams from institutions
     const userTeams = user.universities?.filter((u: any) => u.is_team) || [];
@@ -998,6 +1001,26 @@
               <option value="FACILITIES">Facilities (Finance Ops)</option>
             </select>
           </div>
+
+          {#if editingUserId}
+            <div class="col-span-2">
+              <button
+                type="button"
+                onclick={() => (fullAccess = !fullAccess)}
+                class="w-full flex items-start gap-3 rounded-2xl border p-4 text-left transition-all {fullAccess
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
+                  : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-indigo-200'}"
+              >
+                <span class="mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors {fullAccess ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-slate-600'}">
+                  <span class="h-4 w-4 rounded-full bg-white transition-transform {fullAccess ? 'translate-x-4' : 'translate-x-0.5'}"></span>
+                </span>
+                <span>
+                  <span class="block text-[13px] font-black text-gray-900 dark:text-white">Full Access (all operational modules)</span>
+                  <span class="block text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">Grants every operational feature — Budgeting, Petty Cash, Fee Collection, Assessments, Meetings, Sheets, Ops OS — on top of their role. Excludes admin surfaces (Users, Permissions, Universities, Mailboxes). For Central Team staff.</span>
+                </span>
+              </button>
+            </div>
+          {/if}
 
           <div class="col-span-1">
             <label
