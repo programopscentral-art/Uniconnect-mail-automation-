@@ -102,6 +102,15 @@ export async function validateSession(token: string): Promise<SessionUser | null
             for (const feat of OPS_FEATURES) {
                 if (!user.permissions.includes(feat)) user.permissions.push(feat);
             }
+
+            // Full-access users (e.g. Central Team) see ALL universities, not
+            // just their assigned ones.
+            try {
+                const all = await db.query(
+                    `SELECT id, name, is_team FROM universities WHERE status = 'ACTIVE' ORDER BY name`,
+                );
+                if (all.rows.length) user.universities = all.rows;
+            } catch { /* keep their assigned universities on failure */ }
         }
 
         return user;

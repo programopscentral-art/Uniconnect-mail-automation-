@@ -11,8 +11,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const search = url.searchParams.get('search') || undefined;
     const mine = url.searchParams.get('mine') === 'true';
 
-    // RBAC & Scoping
-    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER';
+    // RBAC & Scoping — full-access users (e.g. Central Team) see all universities.
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER' || (locals.user as any).full_access === true;
     const isSET = locals.user.role === 'SET_REVIEWER';
 
     // Determine effective university filter

@@ -34,15 +34,15 @@ export function assertApprover(user: any) {
     if (!isApprover(user)) throw error(403, 'Only an approver (CMA Manager / Admin) can approve, send back, or reject.');
 }
 
-/** Global admins bypass; otherwise the user must belong to the university. */
+/** Global admins + full-access users bypass; otherwise the user must belong to the university. */
 export function assertUniversityAccess(user: any, universityId: string) {
-    if (isGlobalAdmin(user)) return;
+    if (isGlobalAdmin(user) || user?.full_access) return;
     const ok = user?.universities?.some((u: any) => u.id === universityId) || user?.university_id === universityId;
     if (!ok) throw error(403, 'You do not have access to this university.');
 }
 
 /** The default university filter for list/dashboard queries. */
 export function scopeUniversity(user: any, requested?: string): string | undefined {
-    if (isGlobalAdmin(user)) return requested || undefined;
+    if (isGlobalAdmin(user) || user?.full_access) return requested || undefined;
     return requested || user?.university_id || undefined;
 }
