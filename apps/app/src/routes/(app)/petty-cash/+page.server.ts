@@ -4,8 +4,12 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const user = locals.user!;
-    const admin = isGlobalAdmin(user);
-    const finance = isFinance(user);
+    const fullAccess = (user as any).full_access === true;
+    // Full-access (Central Team) users get the finance console + all-university scope,
+    // even though their role isn't a finance role. Actions stay gated (approve = Satish,
+    // disburse/verify/settle = finance roles) — this only widens visibility.
+    const admin = isGlobalAdmin(user) || fullAccess;
+    const finance = isFinance(user) || fullAccess;
     const university_id = scopeUniversity(user);
 
     // Universities the user can file against.
