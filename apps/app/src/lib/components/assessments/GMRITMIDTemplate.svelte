@@ -366,16 +366,16 @@
         <colgroup>
           <!-- Left spacer matches the logo column so the university name stays
                centred on the page with the logo sitting top-right. -->
-          <col style="width: 120px;" />
+          <col style="width: 145px;" />
           <col />
-          <col style="width: 120px;" />
+          <col style="width: 145px;" />
         </colgroup>
         <tbody>
           <tr>
             <td class="align-middle"></td>
             <td class="text-center align-middle">
               <div
-                class="font-bold text-[16pt] leading-tight text-[#1F3864] tracking-tight"
+                class="font-bold text-[20pt] leading-[1.1] text-[#1F3864] tracking-tight"
               >
                 <AssessmentEditable
                   value={paperMeta.univ_line_1 || "GMRIT Deemed to be University"}
@@ -383,7 +383,7 @@
                   class="w-full text-center"
                 />
               </div>
-              <div class="font-bold text-[10pt] leading-tight">
+              <div class="font-bold text-[11.5pt] leading-tight">
                 <AssessmentEditable
                   value={paperMeta.univ_line_1_2 || "(Autonomous Batch)"}
                   onUpdate={(v: string) => updateText(v, "META", "univ_line_1_2")}
@@ -396,7 +396,7 @@
                 <img
                   src={paperMeta.logo_url || "/gmrit-logo.png"}
                   alt="GMRIT Deemed to be University"
-                  class="h-[48px] w-auto max-w-full object-contain inline-block"
+                  class="h-[56px] w-auto max-w-full object-contain inline-block align-middle"
                   onerror={(e) =>
                     ((e.currentTarget as HTMLImageElement).style.display =
                       "none")}
