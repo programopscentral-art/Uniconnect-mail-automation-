@@ -44,53 +44,93 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 [u.id]
             );
 
-            // Grouping logic
+            /*
+             * Portion hierarchy: Module (unit) -> Topic -> Session.
+             * Sessions are assessment_topics rows with parent_topic_id set. They
+             * used to be flattened in beside their own parent, so a module showed
+             * one long mixed list and a paper-setter could not see which sessions
+             * sat under which topic. Group by parent topic and nest the sessions,
+             * keeping every id in all_ids so selecting a topic still selects
+             * everything beneath it.
+             */
+            const topicById = new Map<string, any>(topics.map((t: any) => [t.id, t]));
+            const parents = topics.filter((t: any) => !t.parent_topic_id);
+            const children = topics.filter((t: any) => t.parent_topic_id);
+
             const topicGroupsMap = new Map<string, any>();
+            const groupOfTopicId = new Map<string, any>();
 
-            // Initialize groups from known topics
-            topics.forEach(t => {
-                const displayName = getStrictDisplay(t.name);
+            const groupFor = (t: any) => {
                 const key = getExtremeCanonical(t.name);
-                if (!topicGroupsMap.has(key)) {
-                    topicGroupsMap.set(key, {
-                        name: displayName,
-                        all_ids: [t.id],
-                        id: t.id,
-                        question_counts: {},
-                        questions: []
-                    });
-                } else {
-                    topicGroupsMap.get(key).all_ids.push(t.id);
+                let g = topicGroupsMap.get(key);
+                if (!g) {
+                    g = { name: getStrictDisplay(t.name), id: t.id, all_ids: [], own_ids: [], sessions: [], question_counts: {}, questions: [] };
+                    topicGroupsMap.set(key, g);
                 }
+                if (!g.all_ids.includes(t.id)) g.all_ids.push(t.id);
+                if (!g.own_ids.includes(t.id)) g.own_ids.push(t.id);
+                groupOfTopicId.set(t.id, g);
+                return g;
+            };
+
+            // 1. Top-level topics become the groups.
+            parents.forEach(groupFor);
+
+            // 2. Sessions nest under their parent's group (or promote to a group
+            //    of their own if the parent row is missing).
+            const sessionMap = new Map<string, any>(); // sessionKey -> session entry
+            children.forEach((c: any) => {
+                const parent = topicById.get(c.parent_topic_id);
+                const g = parent ? (groupOfTopicId.get(parent.id) || groupFor(parent)) : groupFor(c);
+                if (!parent) return; // promoted: it IS the group
+                const sk = g.name + '||' + getExtremeCanonical(c.name);
+                let sess = sessionMap.get(sk);
+                if (!sess) {
+                    sess = { id: c.id, name: getStrictDisplay(c.name), all_ids: [], question_counts: {} };
+                    sessionMap.set(sk, sess);
+                    g.sessions.push(sess);
+                }
+                if (!sess.all_ids.includes(c.id)) sess.all_ids.push(c.id);
+                if (!g.all_ids.includes(c.id)) g.all_ids.push(c.id);
+                groupOfTopicId.set(c.id, g);
+                // remember which session a question on this id belongs to
+                sess.__ids = sess.all_ids;
             });
+            const sessionOfTopicId = new Map<string, any>();
+            for (const g of topicGroupsMap.values()) {
+                for (const sess of g.sessions) for (const id of sess.all_ids) sessionOfTopicId.set(id, sess);
+            }
 
-            // Aggregate counts and questions
+            // 3. Aggregate question counts onto the group and, when the question
+            //    hangs off a session, onto that session too.
             unitQuestions.forEach(q => {
-                const displayName = getStrictDisplay(q.topic_name);
-                const key = getExtremeCanonical(q.topic_name);
-
-                let group = topicGroupsMap.get(key);
+                let group = q.topic_id ? groupOfTopicId.get(q.topic_id) : undefined;
                 if (!group) {
-                    group = {
-                        name: displayName,
-                        all_ids: q.topic_id ? [q.topic_id] : [],
-                        id: q.topic_id || `temp-${key}`,
-                        question_counts: {},
-                        questions: []
-                    };
-                    topicGroupsMap.set(key, group);
+                    const key = getExtremeCanonical(q.topic_name);
+                    group = topicGroupsMap.get(key);
+                    if (!group) {
+                        group = {
+                            name: getStrictDisplay(q.topic_name),
+                            id: q.topic_id || `temp-${key}`,
+                            all_ids: q.topic_id ? [q.topic_id] : [],
+                            own_ids: q.topic_id ? [q.topic_id] : [],
+                            sessions: [], question_counts: {}, questions: []
+                        };
+                        topicGroupsMap.set(key, group);
+                    }
+                    if (q.topic_id) groupOfTopicId.set(q.topic_id, group);
                 }
-
                 const marks = q.marks;
                 group.question_counts[marks] = (group.question_counts[marks] || 0) + 1;
-                group.questions.push({
-                    ...q,
-                    topic: displayName,
-                    topic_name: displayName
-                });
+                group.questions.push({ ...q, topic: group.name, topic_name: group.name });
+
+                const sess = q.topic_id ? sessionOfTopicId.get(q.topic_id) : undefined;
+                if (sess) sess.question_counts[marks] = (sess.question_counts[marks] || 0) + 1;
             });
 
-            const topicGroups = Array.from(topicGroupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            const topicGroups = Array.from(topicGroupsMap.values())
+                .map((g: any) => { g.sessions.sort((a: any, b: any) => a.name.localeCompare(b.name)); return g; })
+                .sort((a, b) => a.name.localeCompare(b.name));
 
             const { rows: unitCounts } = await db.query(
                 'SELECT marks, COUNT(*) as count FROM assessment_questions WHERE unit_id = $1 GROUP BY marks',

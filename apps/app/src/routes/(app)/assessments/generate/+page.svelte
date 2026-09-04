@@ -1109,6 +1109,24 @@
     }
   }
 
+  /**
+   * Sessions sit under a topic inside a module. Selecting one narrows generation
+   * to just that session's questions; selecting the parent topic still selects
+   * everything beneath it (topic.all_ids includes its session ids).
+   */
+  function toggleSession(session: any, unitId: string) {
+    if (!selectedUnitIds.includes(unitId)) {
+      selectedUnitIds = [...selectedUnitIds, unitId];
+    }
+    const sids = session.all_ids?.length ? session.all_ids : [session.id];
+    const allSelected = sids.every((id: string) => selectedTopicIds.includes(id));
+    if (allSelected) {
+      selectedTopicIds = selectedTopicIds.filter((id) => !sids.includes(id));
+    } else {
+      selectedTopicIds = [...new Set([...selectedTopicIds, ...sids])];
+    }
+  }
+
   function selectAllUnits() {
     selectedUnitIds = unitsWithTopics.map((u) => u.id);
     selectedTopicIds = []; // Reset topic filters to use full units
@@ -2324,6 +2342,48 @@
                                 {/each}
                               </div>
                             </button>
+
+                            <!-- Sessions inside this topic (portion: Module → Topic → Session) -->
+                            {#if topic.sessions?.length}
+                              <div class="ml-7 mt-1 mb-2 space-y-0.5 border-l border-gray-200 dark:border-slate-700 pl-3">
+                                {#each topic.sessions as session}
+                                  {@const sids = session.all_ids?.length ? session.all_ids : [session.id]}
+                                  {@const on = sids.every((sid: string) => selectedTopicIds.includes(sid))}
+                                  <button
+                                    type="button"
+                                    class="w-full flex items-center justify-between py-1 pr-1 text-left group/sess"
+                                    onclick={(e) => {
+                                      e.stopPropagation();
+                                      toggleSession(session, unit.id);
+                                    }}
+                                  >
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                      <div
+                                        class="w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 {on
+                                          ? 'bg-indigo-500 border-indigo-500'
+                                          : 'border-gray-300 dark:border-slate-600'}"
+                                      >
+                                        {#if on}
+                                          <svg class="w-2" fill="none" stroke="white" viewBox="0 0 24 24"
+                                            ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M5 13l4 4L19 7" /></svg
+                                          >
+                                        {/if}
+                                      </div>
+                                      <span
+                                        class="text-[9.5px] font-semibold truncate {on
+                                          ? 'text-gray-900 dark:text-white'
+                                          : 'text-gray-400'}">{session.name}</span
+                                      >
+                                    </div>
+                                    <div class="flex gap-1 shrink-0">
+                                      {#each Object.entries(session.question_counts || {}) as [m, count]}
+                                        <span class="text-[8px] font-black text-indigo-400/60">{count}×{m}M</span>
+                                      {/each}
+                                    </div>
+                                  </button>
+                                {/each}
+                              </div>
+                            {/if}
                           {/each}
                         </div>
                       </div>

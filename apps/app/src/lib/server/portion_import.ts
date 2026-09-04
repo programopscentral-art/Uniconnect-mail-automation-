@@ -33,6 +33,7 @@ const canon = (s: unknown): string =>
 const nkey = (s: string): string => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function cell(row: Record<string, unknown>, candidates: string[]): string {
+    // Pass 1 — exact header match.
     for (const c of candidates) {
         const ck = nkey(c);
         for (const k of Object.keys(row)) {
@@ -41,7 +42,47 @@ function cell(row: Record<string, unknown>, candidates: string[]): string {
             if (v !== null && v !== undefined && String(v).trim() !== '') return String(v).trim();
         }
     }
+    // Pass 2 — prefix match, for sheets whose header row has the first data cell
+    // merged into it ("Session Name Course Overview"). Restricted to candidates
+    // of 8+ chars so short ones like "Module" can't swallow "Module Name".
+    for (const c of candidates) {
+        if (c.replace(/[^A-Za-z0-9]/g, '').length < 8) continue;
+        const ck = nkey(c);
+        for (const k of Object.keys(row)) {
+            if (!nkey(k.replace(/__\d+$/, '')).startsWith(ck)) continue;
+            const v = row[k];
+            if (v !== null && v !== undefined && String(v).trim() !== '') return String(v).trim();
+        }
+    }
     return '';
+}
+
+/**
+ * Module number from whatever the sheet wrote: "3", "Module 3", "Unit 3",
+ * "Module III". Roman numerals are accepted because several portion sheets use
+ * them; plain parseInt returned NaN and the whole tab was silently skipped.
+ */
+const ROMAN: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+function romanToInt(raw: string): number | null {
+    const s = raw.toLowerCase();
+    if (!/^[ivxlcdm]+$/.test(s)) return null;
+    let total = 0;
+    for (let i = 0; i < s.length; i++) {
+        const cur = ROMAN[s[i]], next = ROMAN[s[i + 1]];
+        total += next && cur < next ? -cur : cur;
+    }
+    return total > 0 ? total : null;
+}
+function moduleNumOf(raw: string): number | null {
+    const v = String(raw ?? '').trim();
+    if (!v) return null;
+    const digits = v.match(/\d+/);
+    if (digits) {
+        const n = parseInt(digits[0], 10);
+        return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    const word = v.replace(/^(module|unit)\s*/i, '').replace(/[^A-Za-z]/g, '');
+    return word ? romanToInt(word) : null;
 }
 
 function levenshtein(a: string, b: string): number {
@@ -66,34 +107,59 @@ interface ParsedSession { name: string; }
 interface ParsedTopic { name: string; sessions: Map<string, string>; }
 interface ParsedUnit { unit_number: number; name: string; topics: Map<string, ParsedTopic>; }
 
+const MODULE_NUM_KEYS = ['Module Number', 'Module No', 'Module', 'Unit Number', 'Unit No'];
+const MODULE_NAME_KEYS = ['Module Name', 'Unit Name'];
+const TOPIC_KEYS = ['Topic Name', 'Topic'];
+const SESSION_KEYS = ['Session Name', 'Session', 'Sub Topic', 'Subtopic'];
+
 function parseSubjectTab(rows: Record<string, unknown>[]): ParsedUnit[] {
+    /*
+     * Portion sheets are not uniform, and the two shapes below used to be
+     * dropped on the floor:
+     *   - no Module column at all  -> every row was skipped (num == null)
+     *   - no Topic column at all   -> sessions had nothing to hang off
+     * Both are legitimate: a subject may simply be a flat list of sessions.
+     * Pre-scan the tab so we know which shape we are dealing with, then fall
+     * back sensibly instead of skipping.
+     */
+    const hasModule = rows.some(r => moduleNumOf(cell(r, MODULE_NUM_KEYS)) != null);
+    const hasTopic = rows.some(r => cell(r, TOPIC_KEYS) !== '');
+
     const units = new Map<number, ParsedUnit>();
     let lastNum: number | null = null, lastModName = '', lastTopic = '';
+
     for (const r of rows) {
-        const numRaw = cell(r, ['Module Number', 'Module No', 'Module', 'Unit Number', 'Unit No']);
-        let modName = cell(r, ['Module Name', 'Unit Name']);
-        let topic = cell(r, ['Topic', 'Topic Name']);
-        const session = cell(r, ['Session Name', 'Session', 'Sub Topic', 'Subtopic']);
+        const numRaw = cell(r, MODULE_NUM_KEYS);
+        let modName = cell(r, MODULE_NAME_KEYS);
+        let topicRaw = cell(r, TOPIC_KEYS);
+        const session = cell(r, SESSION_KEYS);
 
         // Carry forward values across merged/blank cells.
-        const num: number | null = numRaw ? parseInt(numRaw, 10) : lastNum;
-        if (numRaw && num != null && Number.isFinite(num)) lastNum = num;
+        const parsedNum = moduleNumOf(numRaw);
+        if (parsedNum != null) lastNum = parsedNum;
+        // No module column anywhere -> put the whole subject in Module 1.
+        const num: number | null = parsedNum ?? lastNum ?? (hasModule ? null : 1);
         if (modName) lastModName = modName; else modName = lastModName;
-        if (topic) lastTopic = topic; else topic = lastTopic;
+        if (topicRaw) lastTopic = topicRaw; else topicRaw = lastTopic;
         if (num == null || !Number.isFinite(num)) continue;
 
-        if (!units.has(num)) units.set(num, { unit_number: num, name: modName || `Module ${num}`, topics: new Map() });
+        // No Topic column -> the session IS the leaf, so show session names
+        // directly under the module rather than losing them.
+        const topic = hasTopic ? topicRaw : session;
+        const sessionName = hasTopic ? session : '';
+        if (!topic) continue;
+
+        const defaultName = hasModule ? `Module ${num}` : '';
+        if (!units.has(num)) units.set(num, { unit_number: num, name: modName || defaultName || `Module ${num}`, topics: new Map() });
         const u = units.get(num)!;
         if (modName && (!u.name || u.name === `Module ${num}`)) u.name = modName;
 
-        if (topic) {
-            const tk = canon(topic);
-            if (tk && !u.topics.has(tk)) u.topics.set(tk, { name: topic, sessions: new Map() });
-            const t = tk ? u.topics.get(tk) : undefined;
-            if (t && session) {
-                const sk = canon(session);
-                if (sk && !t.sessions.has(sk)) t.sessions.set(sk, session);
-            }
+        const tk = canon(topic);
+        if (tk && !u.topics.has(tk)) u.topics.set(tk, { name: topic, sessions: new Map() });
+        const t = tk ? u.topics.get(tk) : undefined;
+        if (t && sessionName) {
+            const sk = canon(sessionName);
+            if (sk && !t.sessions.has(sk)) t.sessions.set(sk, sessionName);
         }
     }
     return Array.from(units.values()).sort((a, b) => a.unit_number - b.unit_number);
@@ -107,7 +173,7 @@ function countParsed(units: ParsedUnit[]) {
 
 // ── subject matching (all universities) ─────────────────────────────────────
 
-interface SubjectRow { id: string; name: string; university: string | null; }
+interface SubjectRow { id: string; name: string; university: string | null; university_id?: string | null; }
 
 async function matchSubjects(tabName: string, semester: number, pool: SubjectRow[]): Promise<SubjectRow[]> {
     const target = canon(tabName);
@@ -139,9 +205,11 @@ async function loadPortionIntoSubject(subject: SubjectRow, parsed: ParsedUnit[],
         subject: subject.name, university: subject.university,
         units_created: 0, units_existing: 0, topics_created: 0, topics_existing: 0, sessions_created: 0, sessions_existing: 0,
     };
-    const existingUnits = (await db.query(
-        'SELECT id, unit_number, name FROM assessment_units WHERE subject_id = $1', [subject.id],
-    )).rows as Array<{ id: string; unit_number: number; name: string }>;
+    const existingUnits = subject.id === '__dry__'
+        ? [] as Array<{ id: string; unit_number: number; name: string }>
+        : (await db.query(
+            'SELECT id, unit_number, name FROM assessment_units WHERE subject_id = $1', [subject.id],
+        )).rows as Array<{ id: string; unit_number: number; name: string }>;
 
     for (const pu of parsed) {
         let unit = existingUnits.find(u => Number(u.unit_number) === pu.unit_number);
@@ -209,19 +277,69 @@ export function extractSheetId(raw: string): string {
     return s; // already an ID
 }
 
-export async function importPortion(sheetIdOrUrl: string, semester: number, dryRun: boolean): Promise<PortionImportResult> {
+/** Optional scoping for a portion load. */
+export interface PortionImportOptions {
+    /** Restrict the load to these universities (default: every university). */
+    universityIds?: string[];
+    /** Create the subject at this semester where a scoped university lacks it. */
+    createMissing?: boolean;
+}
+
+/**
+ * A branch to hang a newly-created subject off, creating a General
+ * batch/branch when the university has none. Mirrors the bulk question-bank
+ * uploader so both importers place new subjects the same way.
+ */
+async function branchForUniversity(uniId: string, dryRun: boolean): Promise<{ branchId: string; batchId: string | null } | null> {
+    const existing = (await db.query(
+        `SELECT id, batch_id FROM assessment_branches WHERE university_id = $1 ORDER BY created_at ASC LIMIT 1`,
+        [uniId],
+    )).rows[0];
+    if (existing) return { branchId: existing.id, batchId: existing.batch_id ?? null };
+    if (dryRun) return null;
+
+    let batch = (await db.query(
+        `SELECT id FROM assessment_batches WHERE university_id = $1 ORDER BY created_at ASC LIMIT 1`, [uniId],
+    )).rows[0];
+    if (!batch) {
+        batch = (await db.query(
+            `INSERT INTO assessment_batches (university_id, name) VALUES ($1, 'General') RETURNING id`, [uniId],
+        )).rows[0];
+    }
+    const br = (await db.query(
+        `INSERT INTO assessment_branches (university_id, batch_id, name, code) VALUES ($1,$2,'General','GEN') RETURNING id`,
+        [uniId, batch.id],
+    )).rows[0];
+    return { branchId: br.id, batchId: batch.id };
+}
+
+export async function importPortion(
+    sheetIdOrUrl: string,
+    semester: number,
+    dryRun: boolean,
+    opts: PortionImportOptions = {},
+): Promise<PortionImportResult> {
     const sheet_id = extractSheetId(sheetIdOrUrl);
     const tabs = await discoverSheetTabs(sheet_id);
     if (tabs.length === 0) throw new Error('Could not read the sheet. Make sure it is shared "Anyone with the link → Viewer".');
 
-    // Load the subject pool once (all subjects at this semester, any university).
+    const scoped = (opts.universityIds || []).filter(Boolean);
+    const scopeSet = new Set(scoped);
+
+    // Load the subject pool once. Scoped to the given universities when asked.
     const pool = (await db.query(
-        `SELECT s.id, s.name, u.name AS university
-           FROM assessment_subjects s
-           LEFT JOIN assessment_batches b ON b.id = s.batch_id
-           LEFT JOIN universities u ON u.id = b.university_id
-          WHERE s.semester = $1`,
-        [semester],
+        scoped.length
+            ? `SELECT s.id, s.name, u.name AS university, u.id AS university_id
+                 FROM assessment_subjects s
+                 JOIN assessment_branches b ON b.id = s.branch_id
+                 JOIN universities u ON u.id = b.university_id
+                WHERE s.semester = $1 AND u.id = ANY($2::uuid[])`
+            : `SELECT s.id, s.name, u.name AS university, u.id AS university_id
+                 FROM assessment_subjects s
+                 LEFT JOIN assessment_batches b ON b.id = s.batch_id
+                 LEFT JOIN universities u ON u.id = b.university_id
+                WHERE s.semester = $1`,
+        scoped.length ? [semester, scoped] : [semester],
     )).rows as SubjectRow[];
 
     const out: PortionTabResult[] = [];
@@ -243,6 +361,34 @@ export async function importPortion(sheetIdOrUrl: string, semester: number, dryR
         if (parsed.length === 0) { out.push({ tab: tab.name, status: 'skipped', detail: 'no Module/Topic rows found' }); continue; }
 
         const subjects = await matchSubjects(tab.name, semester, pool);
+
+        // Create the subject for any scoped university that does not have it, so
+        // a new semester can be set up without hand-making 6 subjects per campus.
+        if (opts.createMissing && scopeSet.size) {
+            const have = new Set(subjects.map(s => String(s.university_id ?? '')));
+            for (const uniId of scopeSet) {
+                if (have.has(uniId)) continue;
+                const home = await branchForUniversity(uniId, dryRun);
+                if (!home) { // dry run with no branch yet
+                    subjects.push({ id: '__dry__', name: tab.name.trim(), university: null, university_id: uniId });
+                    continue;
+                }
+                if (dryRun) {
+                    subjects.push({ id: '__dry__', name: tab.name.trim(), university: null, university_id: uniId });
+                    continue;
+                }
+                const created = (await db.query(
+                    `INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester)
+                     VALUES ($1,$2,$3,'',$4) RETURNING id`,
+                    [home.branchId, home.batchId, tab.name.trim(), semester],
+                )).rows[0];
+                const uname = (await db.query(`SELECT name FROM universities WHERE id = $1`, [uniId])).rows[0]?.name ?? null;
+                const row: SubjectRow = { id: created.id, name: tab.name.trim(), university: uname, university_id: uniId };
+                subjects.push(row);
+                pool.push(row);
+            }
+        }
+
         if (subjects.length === 0) {
             out.push({ tab: tab.name, status: 'unmatched', detail: `no Semester ${semester} subject matches this tab name`, ...counts });
             continue;
