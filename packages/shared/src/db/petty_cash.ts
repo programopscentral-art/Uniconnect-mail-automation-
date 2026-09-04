@@ -9,7 +9,7 @@ import { db } from './client';
  */
 
 export type PettyCashStatus =
-    | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'DISBURSED' | 'BILL_SUBMITTED'
+    | 'DRAFT' | 'SUBMITTED' | 'L1_APPROVED' | 'APPROVED' | 'DISBURSED' | 'BILL_SUBMITTED'
     | 'BILL_VERIFIED' | 'SETTLED' | 'CLOSED' | 'SENT_BACK' | 'REJECTED' | 'CANCELLED';
 
 export const PC_CATEGORIES = [

@@ -23,6 +23,7 @@ export const UNIVERSITIES: Record<string, string> = {
 	annamacharya: "Annamacharya University",
 	nri: "NRI Institute of Technology",
 	sgu: "Sanjay Ghodawat University",
+	gmrit: "GMRIT (Deemed to be University)",
 	aurora: "Aurora University",
 	ciet: "CITY & CIET",
 	chevella: "NIAT Chevella",
@@ -64,6 +65,7 @@ const NAME_MATCHERS: [string, string[]][] = [
 	["annamacharya", ["annamacharya"]],
 	["nri", ["nri"]],
 	["sgu", ["sgu", "sanjay ghodawat", "shivaji"]],
+	["gmrit", ["gmrit", "gmr institute"]],
 	["aurora", ["aurora"]],
 	["ciet", ["ciet", "city&", "city &"]],
 	["chevella", ["chevella"]],
@@ -76,6 +78,7 @@ const NAME_MATCHERS: [string, string[]][] = [
 const UNIVERSITY_ID_TO_KEY: Record<string, string> = {
 	"8e5403f9-505a-44d1-add4-aae3efaa9248": "cdu",
 	"c40ed15d-b3e4-49ba-b1c4-71a2a8526a6f": "vgu",
+	"57d91715-8823-4f09-989b-a9f8e663b70f": "gmrit",
 };
 
 export interface TemplateInput {

@@ -13,6 +13,7 @@ import AnnamacharyaTemplate from "./AnnamacharyaTemplate.svelte";
 import CDUTemplate from "./CDUTemplate.svelte";
 import CrescentMidTemplate from "./CrescentMidTemplate.svelte";
 import CrescentTemplate from "./CrescentTemplate.svelte";
+import GMRITMIDTemplate from "./GMRITMIDTemplate.svelte";
 import MallareddyTemplate from "./MallareddyTemplate.svelte";
 import NRITemplate from "./NRITemplate.svelte";
 import SGU50SEMTemplate from "./SGU50SEMTemplate.svelte";
@@ -49,6 +50,7 @@ export const TEMPLATE_REGISTRY: Record<string, any> = {
 	takshashilamid: TakshashilaTemplate,
 	svyasamid: SVYASATemplate,
 	nrimid: NRITemplate,
+	gmritmid: GMRITMIDTemplate,
 	mrvmid: MallareddyTemplate,
 	sgusem50: SGU50SEMTemplate,
 	sgusem75: SGU75SEMTemplate,
