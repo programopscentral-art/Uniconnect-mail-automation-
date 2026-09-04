@@ -301,11 +301,42 @@
   const coOf = (q: any) => q?.target_co || q?.co_indicator || "CO1";
   const rbtOf = (q: any) => q?.k_level || q?.bloom_level || "";
 
+  /**
+   * Marks shown against one sub-question. `marks_per_q` is the mark for the whole
+   * numbered question (10), so when it splits into a/b each part carries half —
+   * printing 10 on both rows would double the paper's total.
+   */
+  const subMarks = (q: any, section: any, count: number) => {
+    if (q?.marks !== undefined && q?.marks !== null && q?.marks !== "")
+      return String(q.marks);
+    const per = Number(section?.marks_per_q) || 0;
+    if (!per) return "";
+    return String(count > 1 ? per / count : per);
+  };
+
   // Read-only drop-target highlight, driven by the shared drag controller.
   const isDropTarget = (slotId: string) =>
     !!paperDrag &&
     paperDrag.overId === slotId &&
     paperDrag.activeId !== slotId;
+
+  /** First and last printed question number in a section (OR groups span two). */
+  const sectionRange = $derived((sIdx: number) => {
+    const qs = questionsByPart(paperStructure[sIdx]?.part);
+    if (!qs.length) return null;
+    const first = slotNumberStart(sIdx, 0);
+    const lastSlot = qs[qs.length - 1];
+    const last =
+      slotNumberStart(sIdx, qs.length - 1) +
+      (lastSlot?.type === "OR_GROUP" ? 1 : 0);
+    return { first, last };
+  });
+
+  const NUM_WORDS = [
+    "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE",
+    "SIX", "SEVEN", "EIGHT", "NINE", "TEN",
+  ];
+  const numWord = (n: number) => NUM_WORDS[n] || String(n);
 
   const sectionTitle = (section: any, qs: any[]) => {
     if (section?.title) return section.title;
@@ -470,14 +501,14 @@
             </td>
           </tr>
           <tr>
-            <td class="p-1 font-bold" colspan="2">Remember (%)</td>
+            <td class="p-1 font-bold">Remember (%)</td>
             <td class="p-1 text-center">
               <AssessmentEditable
                 value={paperMeta.rbt_remember || ""}
                 onUpdate={(v: string) => updateText(v, "META", "rbt_remember")}
               />
             </td>
-            <td class="p-1 font-bold" colspan="2">Understand (%)</td>
+            <td class="p-1 font-bold">Understand (%)</td>
             <td class="p-1 text-center">
               <AssessmentEditable
                 value={paperMeta.rbt_understand || ""}
@@ -485,12 +516,17 @@
               />
             </td>
             <td class="p-1 font-bold">Apply (%)</td>
-            <td class="p-1 font-bold">
-              Analyze (%)
+            <td class="p-1 text-center">
+              <AssessmentEditable
+                value={paperMeta.rbt_apply || ""}
+                onUpdate={(v: string) => updateText(v, "META", "rbt_apply")}
+              />
+            </td>
+            <td class="p-1 font-bold">Analyze (%)</td>
+            <td class="p-1 text-center">
               <AssessmentEditable
                 value={paperMeta.rbt_analyze || ""}
                 onUpdate={(v: string) => updateText(v, "META", "rbt_analyze")}
-                class="inline-block min-w-[2ch]"
               />
             </td>
           </tr>
@@ -517,7 +553,7 @@
               value={section.instruction ||
                 (isPartA
                   ? "(Answer all the questions)"
-                  : `Answer ${sectionQs.length} questions`)}
+                  : `Answer ${numWord(sectionQs.length)} questions`)}
               onUpdate={(v: string) => {
                 section.instruction = v;
                 paperStructure = [...paperStructure];
@@ -543,7 +579,12 @@
               <th class="p-1 font-bold text-center">No{isPartA ? "." : ""}</th>
               {#if !isPartA}<th class="p-1"></th>{/if}
               <th class="p-1 font-bold text-center">
-                {isPartA ? "Question (s)" : "Questions (6 to 11)"}
+                {#if isPartA}
+                  Question (s)
+                {:else}
+                  {@const r = sectionRange(sIdx)}
+                  Questions{r ? ` (${r.first} to ${r.last})` : ""}
+                {/if}
               </th>
               <th class="p-1 font-bold text-center">RBT Level</th>
               <th class="p-1 font-bold text-center">COs</th>
@@ -565,9 +606,11 @@
                     <td class="p-1.5 text-center align-top font-bold">
                       {#if qIdx === 0}{startNo}{/if}
                     </td>
-                    <td class="p-1.5 text-center align-top font-bold">
-                      {subLabel(q, qIdx)}
-                    </td>
+                    {#if !isPartA}
+                      <td class="p-1.5 text-center align-top font-bold">
+                        {subLabel(q, qIdx)}
+                      </td>
+                    {/if}
                     <td class="p-1.5 align-top relative">
                       <AssessmentRowActions
                         {isEditable}
@@ -640,20 +683,24 @@
                         class="inline-block min-w-[3ch] text-center"
                       />
                     </td>
+                    {#if !isPartA}
                     <td class="p-1.5 text-center align-top font-bold">
                       <AssessmentEditable
-                        value={String(q.marks || section.marks_per_q || "")}
+                        value={subMarks(q, section, q1s.length)}
                         onUpdate={(v: string) =>
                           updateText(v, "QUESTION", "marks", slot.id, q.id)}
                         class="inline-block min-w-[1ch] text-center"
                       />
                     </td>
+                    {/if}
                   </tr>
                 {/each}
 
                 <!-- ── OR separator ── -->
                 <tr>
-                  <td colspan="6" class="p-0.5 text-center font-bold text-[9.5pt]"
+                  <td
+                    colspan={isPartA ? 4 : 6}
+                    class="p-0.5 text-center font-bold text-[9.5pt]"
                     >OR</td
                   >
                 </tr>
@@ -664,9 +711,11 @@
                     <td class="p-1.5 text-center align-top font-bold">
                       {#if qIdx === 0}{startNo + 1}{/if}
                     </td>
-                    <td class="p-1.5 text-center align-top font-bold">
-                      {subLabel(q, qIdx)}
-                    </td>
+                    {#if !isPartA}
+                      <td class="p-1.5 text-center align-top font-bold">
+                        {subLabel(q, qIdx)}
+                      </td>
+                    {/if}
                     <td class="p-1.5 align-top relative">
                       <AssessmentRowActions
                         {isEditable}
@@ -739,14 +788,16 @@
                         class="inline-block min-w-[3ch] text-center"
                       />
                     </td>
+                    {#if !isPartA}
                     <td class="p-1.5 text-center align-top font-bold">
                       <AssessmentEditable
-                        value={String(q.marks || section.marks_per_q || "")}
+                        value={subMarks(q, section, q2s.length)}
                         onUpdate={(v: string) =>
                           updateText(v, "QUESTION", "marks", slot.id, q.id)}
                         class="inline-block min-w-[1ch] text-center"
                       />
                     </td>
+                    {/if}
                   </tr>
                 {/each}
               {:else}
@@ -841,7 +892,7 @@
                     {#if !isPartA}
                       <td class="p-1.5 text-center align-top font-bold">
                         <AssessmentEditable
-                          value={String(q.marks || section.marks_per_q || "")}
+                          value={subMarks(q, section, qs.length)}
                           onUpdate={(v: string) =>
                             updateText(v, "QUESTION", "marks", slot.id, q.id)}
                           class="inline-block min-w-[1ch] text-center"
