@@ -6,6 +6,7 @@
   import { installPaperUi } from "./shared/paperUi.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
   import { buildSwappedQuestion } from "./shared/swapQuestion";
+  import AssessmentLogo from "./shared/AssessmentLogo.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -245,7 +246,7 @@
         <tbody>
           <tr>
             <td class="w-[18%] align-middle border-none">
-              <img src="https://scontent.fhyd1-2.fna.fbcdn.net/v/t39.30808-6/294579151_444430584362976_5584277717608290735_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=D8xw9_T7KeIQ7kNvwFArnz4&_nc_oc=Adm1ucHqKtMN3-4w4uv7rpCfQHspvdzPo0BOVM40oQMtiiPzgdMGiifJ1CfCYqbn_wE&_nc_zt=23&_nc_ht=scontent.fhyd1-2.fna&_nc_gid=vK8MQa6t4WUz7gXY44nYEg&_nc_ss=8&oh=00_AfzajnHC_Qs5kbYlBlIGRHknPWeSf4rZM2GitOlpfHgySg&oe=69B58A53" alt="NRI Logo" class="h-28 w-auto object-contain" />
+              <AssessmentLogo src="/nri-logo.png" name="" class="h-28 w-auto object-contain" />
             </td>
             <td class="w-[64%] text-center align-middle border-none">
               <h1 class="text-[#E31E24] text-[20pt] font-black leading-none mb-1">NRI INSTITUTE OF TECHNOLOGY</h1>

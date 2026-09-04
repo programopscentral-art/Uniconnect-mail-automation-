@@ -97,6 +97,30 @@
     return out.sort((x, y) => y.pct - x.pct);
   });
 
+  /**
+   * Questions already placed in the OTHER sets of this paper.
+   *
+   * The swap picker only ever knew about the set being edited, so replacing a
+   * question in Set B could hand you one that is already in Set A - which is how
+   * duplicates appeared across sets even though the generator de-duplicates.
+   * Narrowing the pool here fixes it for every template at once, with no prop
+   * threading through the 16 university templates.
+   */
+  const idsUsedInOtherSets = $derived.by(() => {
+    const out = new Set<string>();
+    for (const k of availableSets) {
+      if (k === activeSet || !editableSets?.[k]) continue;
+      questionIdsOf(editableSets[k]).forEach((id) => out.add(id));
+    }
+    return out;
+  });
+
+  const poolForActiveSet = $derived(
+    (data.questionPool || []).filter(
+      (q: any) => !idsUsedInOtherSets.has(String(q.question_id ?? q.id)),
+    ),
+  );
+
   const maxSimilarity = $derived(
     setPairs.length ? setPairs[0].pct : 0,
   );
@@ -1626,6 +1650,35 @@
             >
             {universityLabel}
           </div>
+          <!-- Approval status — lives in this bar rather than as a full-width
+               banner over the paper, which dominated the page. -->
+          <div
+            class="px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-2 border
+            {approvalStatus === 'approved'
+              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+              : approvalStatus === 'pending_review'
+                ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                : 'bg-slate-500/10 text-slate-300 border-slate-500/30'}"
+            title={approvalStatus === 'approved'
+              ? 'This is the approved paper for this assessment'
+              : approvalStatus === 'pending_review'
+                ? 'Sent for approval — awaiting SME review'
+                : 'Draft — not yet sent for approval'}
+          >
+            <div
+              class="w-1.5 h-1.5 rounded-full {approvalStatus === 'approved'
+                ? 'bg-emerald-400'
+                : approvalStatus === 'pending_review'
+                  ? 'bg-amber-400 animate-pulse'
+                  : 'bg-slate-400'}"
+            ></div>
+            {approvalStatus === "approved"
+              ? `Approved · ${examTypeLabel}`
+              : approvalStatus === "pending_review"
+                ? "Pending Review"
+                : "Draft"}
+          </div>
+
           <!-- Version Tag -->
           <div
             class="ml-auto px-4 py-1.5 rounded-lg text-[9px] font-black bg-green-100 text-green-700 border border-green-200 uppercase tracking-[0.2em] flex items-center gap-2"
@@ -1639,44 +1692,6 @@
 
         <TemplateCautionBanner {resolved} />
 
-        <!-- Clear approval banner on the paper itself (screen only — kept out of
-             the printed/PDF paper via no-print). -->
-        {#if approvalStatus === "approved"}
-          <div
-            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3"
-          >
-            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
-            </span>
-            <div>
-              <p class="text-sm font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                Approved for {examTypeLabel}
-              </p>
-              <p class="text-[11px] font-semibold text-emerald-600/80 dark:text-emerald-400/70">
-                This is the approved paper for this assessment.
-              </p>
-            </div>
-          </div>
-        {:else if approvalStatus === "pending_review"}
-          <div
-            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3"
-          >
-            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white font-black">…</span>
-            <p class="text-sm font-black uppercase tracking-wide text-amber-700 dark:text-amber-300">
-              Pending SME review — sent for approval
-            </p>
-          </div>
-        {:else}
-          <div
-            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-500/5 px-5 py-3"
-          >
-            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-400 text-white font-black text-xs">DR</span>
-            <p class="text-sm font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">
-              Draft — not yet sent for approval
-            </p>
-          </div>
-        {/if}
-
         <!-- The university's own MID/SEM template. One resolver decides which,
              so the viewer and the generate preview can never disagree. -->
         <PaperTemplate
@@ -1685,7 +1700,7 @@
           bind:paperStructure={paperMeta.template_config}
           {activeSet}
           courseOutcomes={data.courseOutcomes}
-          questionPool={data.questionPool}
+          questionPool={poolForActiveSet}
           mode="edit"
           onSwap={handleSetUpdate}
         />

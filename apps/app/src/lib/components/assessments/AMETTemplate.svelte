@@ -8,6 +8,7 @@
   import { installPaperUi } from "./shared/paperUi.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
   import { buildSwappedQuestion } from "./shared/swapQuestion";
+  import AssessmentLogo from "./shared/AssessmentLogo.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -265,10 +266,11 @@
 
       <!-- Top Logo Section -->
       <div class="flex justify-center mb-6">
-        <img
-          src="https://admission-kerala.ametuniv.ac.in/public/logo/amet_logo.png"
-          alt="AMET Logo"
+        <AssessmentLogo
+          src="/amet-logo.png"
+          name="Academy of Maritime Education & Training (AMET)"
           class="h-24 w-auto object-contain"
+          fallbackClass="text-[16pt] text-center"
         />
       </div>
 

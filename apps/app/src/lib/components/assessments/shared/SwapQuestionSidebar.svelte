@@ -16,8 +16,26 @@
   let selectedTopic = $state<string | null>(null);
   let showAllMarks = $state(false);
 
+  /**
+   * A question's type as its MARKS actually support it.
+   *
+   * The bank contains questions stored as VERY_LONG that carry 2 marks (every
+   * VERY_LONG row does), so picking the VERY_LONG filter listed 2-mark
+   * questions. Marks are what a paper slot is really built from, so when the
+   * stored type contradicts them we classify by marks instead. Purely a display
+   * / filter concern - nothing is written back here.
+   */
+  function effectiveType(q: any): string {
+    const t = String(q?.type || "").toUpperCase();
+    const m = Number(q?.marks ?? q?.mark ?? 0);
+    if (Array.isArray(q?.options) && q.options.length > 0) return "MCQ";
+    if (t === "VERY_LONG" && m < 10) return m >= 5 ? "LONG" : "SHORT";
+    if (t === "LONG" && m < 5) return "SHORT";
+    return t;
+  }
+
   const availableTypes = $derived(
-    Array.from(new Set(questionPool.map((q) => q.type).filter(Boolean))).sort(),
+    Array.from(new Set(questionPool.map((q) => effectiveType(q)).filter(Boolean))).sort(),
   );
 
   const availableTopics = $derived(
@@ -65,7 +83,7 @@
 
     // Secondary Filter: Question Type
     if (selectedType) {
-      list = list.filter((q) => q.type === selectedType);
+      list = list.filter((q) => effectiveType(q) === selectedType);
     }
 
     // New Filter: Topic
@@ -249,7 +267,7 @@
               <span
                 class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
               >
-                {q.type}
+                {effectiveType(q)}
               </span>
               {#if q.topic_name}
                 <span

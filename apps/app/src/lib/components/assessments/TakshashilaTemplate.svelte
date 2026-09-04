@@ -318,7 +318,7 @@
               <!-- Logo column -->
               <td class="w-[150px] align-middle">
                 <img
-                  src="https://media.licdn.com/dms/image/v2/C4D0BAQEn2ipthDvaeA/company-logo_200_200/company-logo_200_200/0/1657190027778?e=2147483647&v=beta&t=wN3xsb19OvSBfcDMjaHQdtOsCWoMDwPczektN7oSCAs"
+                  src="/takshashila-logo.jpg"
                   alt="Takshashila University Logo"
                   class="w-[135px] h-auto object-contain mx-auto"
                 />

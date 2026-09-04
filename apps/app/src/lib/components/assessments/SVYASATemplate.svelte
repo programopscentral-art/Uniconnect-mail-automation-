@@ -285,7 +285,7 @@
       <!-- Top Logo Section -->
       <div class="flex justify-center mb-4">
         <img
-          src="https://play-lh.googleusercontent.com/F0Cs4ynL1gXgREKijpnRqrj6oGlvSF6vsMhNLcSoUx8n6ZNvyfZQXfdKgzaLY4RWtc3s63XKr-Vy1opOi1eqWA"
+          src="/svyasa-logo.png"
           alt="S-VYASA Logo"
           class="h-28 w-auto object-contain"
         />
