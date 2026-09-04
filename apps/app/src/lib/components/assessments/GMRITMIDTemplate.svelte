@@ -364,9 +364,11 @@
       <!-- ══════════ LETTERHEAD (3 columns: spacer | name | logo) ══════════ -->
       <table class="w-full border-collapse gm-plain mb-1">
         <colgroup>
-          <col style="width: 70px;" />
+          <!-- Left spacer matches the logo column so the university name stays
+               centred on the page with the logo sitting top-right. -->
+          <col style="width: 120px;" />
           <col />
-          <col style="width: 110px;" />
+          <col style="width: 120px;" />
         </colgroup>
         <tbody>
           <tr>
@@ -393,8 +395,8 @@
               {#if paperMeta.logo_url !== ""}
                 <img
                   src={paperMeta.logo_url || "/gmrit-logo.png"}
-                  alt="GMRIT"
-                  class="h-[52px] w-auto object-contain inline-block"
+                  alt="GMRIT Deemed to be University"
+                  class="h-[48px] w-auto max-w-full object-contain inline-block"
                   onerror={(e) =>
                     ((e.currentTarget as HTMLImageElement).style.display =
                       "none")}
