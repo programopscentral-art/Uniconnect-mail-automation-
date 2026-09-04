@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { slide, fade, fly } from "svelte/transition";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidateAll, goto } from "$app/navigation";
   import TemplateCautionBanner from "$lib/components/assessments/TemplateCautionBanner.svelte";
   import { resolvePaperTemplate } from "$lib/components/assessments/templateRegistry";
   import { deriveStructureFromSet } from "$lib/components/assessments/paperStructure";
@@ -47,6 +47,26 @@
   // We deep clone paper data to allow local edits
   let editableSets = $state<any>(initializeSets());
   let paperMeta = $state(initializeMeta());
+
+  /**
+   * Back should return to the step you came from - the generate wizard, the
+   * subject's Papers tab, wherever - instead of always jumping to the subject
+   * page (which lands on the Examinations home when the paper has no subject).
+   * Only trust history when the previous page was our own origin.
+   */
+  function goBack() {
+    if (typeof window !== "undefined") {
+      try {
+        const ref = document.referrer;
+        if (ref && new URL(ref).origin === window.location.origin && window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+      } catch { /* fall through to the explicit route */ }
+    }
+    const sid = (data as any)?.paper?.subject_id;
+    goto(sid ? `/assessments/subjects/${sid}?activeTab=PAPERS` : "/assessments");
+  }
 
   /* ─────────── Set similarity ───────────
      Sets are meant to be different papers. This surfaces how many questions any
@@ -1390,10 +1410,11 @@
     class="bg-gray-900 text-white rounded-[2rem] p-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 print:hidden no-print"
   >
     <div class="flex items-center gap-6 px-4 no-print">
-      <a
-        href="/assessments/subjects/{data.paper.subject_id}?activeTab=PAPERS"
+      <button
+        type="button"
+        onclick={goBack}
         class="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
-        title="Back to Papers"
+        title="Back"
       >
         <svg
           class="w-5 h-5"
@@ -1407,7 +1428,7 @@
             d="M15 19l-7-7 7-7"
           /></svg
         >
-      </a>
+      </button>
 
       <div class="space-y-0.5">
         <div

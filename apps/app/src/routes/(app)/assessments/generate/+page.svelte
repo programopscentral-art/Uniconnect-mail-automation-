@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { slide, fade, fly } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
@@ -112,6 +113,74 @@
   let selectedTemplateId = $state<string | null>(null);
   let isLoadingTopics = $state(false);
   let isGenerating = $state(false);
+
+  /* ─────────── Remember where you were in the wizard ───────────
+     Generating navigates away to the paper. Coming back used to drop you at
+     step 1 with nothing selected, because the step and the selections live in
+     component state. Snapshot them per-URL in sessionStorage (so a different
+     university/batch keeps its own progress) and restore on mount. Cleared once
+     it goes stale so an old session never resurfaces days later. */
+  const WIZARD_KEY = "assessments:generate:wizard";
+  let wizardReady = $state(false);
+  const WIZARD_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+  function restoreWizard() {
+    if (typeof sessionStorage === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem(WIZARD_KEY);
+      if (!raw) return;
+      const v = JSON.parse(raw);
+      if (!v || Date.now() - (v.__savedAt || 0) > WIZARD_TTL_MS) {
+        sessionStorage.removeItem(WIZARD_KEY);
+        return;
+      }
+      // Only restore into the same context; the URL carries university/batch/branch.
+      if (v.__search !== window.location.search) return;
+
+      if (typeof v.currentStep === "number") currentStep = v.currentStep;
+      if (v.selectedSemester != null) selectedSemester = v.selectedSemester;
+      if (v.selectedSubjectId) selectedSubjectId = v.selectedSubjectId;
+      if (v.selectedExamType) selectedExamType = v.selectedExamType;
+      if (Array.isArray(v.selectedUnitIds)) selectedUnitIds = v.selectedUnitIds;
+      if (Array.isArray(v.selectedTopicIds)) selectedTopicIds = v.selectedTopicIds;
+      if (v.selectedTemplateId) selectedTemplateId = v.selectedTemplateId;
+      if (v.selectedTemplate) selectedTemplate = v.selectedTemplate;
+      if (v.generationMode) generationMode = v.generationMode;
+      if (Array.isArray(v.paperStructure) && v.paperStructure.length)
+        paperStructure = v.paperStructure;
+    } catch {
+      /* a corrupt snapshot must never block the page */
+    }
+  }
+
+  onMount(() => {
+    restoreWizard();
+    wizardReady = true; // only start saving once the snapshot has been applied
+  });
+
+  $effect(() => {
+    if (!wizardReady || typeof sessionStorage === "undefined") return;
+    // Touch each field so the effect re-runs when any of them changes.
+    const snap = {
+      __savedAt: Date.now(),
+      __search: window.location.search,
+      currentStep,
+      selectedSemester,
+      selectedSubjectId,
+      selectedExamType,
+      selectedUnitIds: $state.snapshot(selectedUnitIds),
+      selectedTopicIds: $state.snapshot(selectedTopicIds),
+      selectedTemplateId,
+      selectedTemplate,
+      generationMode,
+      paperStructure: $state.snapshot(paperStructure),
+    };
+    try {
+      sessionStorage.setItem(WIZARD_KEY, JSON.stringify(snap));
+    } catch {
+      /* quota / private mode - remembering is a convenience, not a requirement */
+    }
+  });
 
   function initializeStructure(force = false) {
     if (!force && paperStructure.length > 0) return; // Don't overwrite if already exists
