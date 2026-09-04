@@ -76,25 +76,55 @@
     return ids;
   }
 
-  const setPairs = $derived.by(() => {
-    const present = availableSets.filter((s) => editableSets?.[s]);
-    const idMap = new Map<string, Set<string>>(
-      present.map((s) => [s, questionIdsOf(editableSets[s])]),
-    );
-    const out: Array<{ a: string; b: string; shared: number; pct: number }> = [];
-    for (let i = 0; i < present.length; i++) {
-      for (let j = i + 1; j < present.length; j++) {
-        const A = idMap.get(present[i])!;
-        const B = idMap.get(present[j])!;
-        if (!A.size || !B.size) continue;
-        let shared = 0;
-        A.forEach((id) => { if (B.has(id)) shared++; });
-        // % of the smaller set that is duplicated in the other.
-        const pct = Math.round((shared / Math.min(A.size, B.size)) * 100);
-        out.push({ a: present[i], b: present[j], shared, pct });
+  /**
+   * Every question that appears in MORE THAN ONE set, and exactly where it sits.
+   *
+   * A single "overlap %" told you a repeat existed but never which question or
+   * which sets, and it read the same no matter which set you were on - so it was
+   * not actionable. This lists the offending questions by name with a jump link
+   * to each set they appear in.
+   */
+  const duplicateAcrossSets = $derived.by(() => {
+    const seen = new Map<
+      string,
+      { text: string; marks: any; locs: Array<{ set: string; no: number }> }
+    >();
+    for (const k of availableSets) {
+      const set = editableSets?.[k];
+      if (!set) continue;
+      const arr = Array.isArray(set) ? set : set?.questions || [];
+      let no = 0;
+      for (const slot of arr) {
+        if (!slot) continue;
+        const qs =
+          slot.type === "OR_GROUP"
+            ? [
+                ...(slot.choice1?.questions || []),
+                ...(slot.choice2?.questions || []),
+              ]
+            : slot.questions || [slot];
+        for (const q of qs) {
+          if (!q) continue;
+          const id = String(q.question_id ?? q.id ?? "");
+          if (!id || id.startsWith("missing-")) continue;
+          no++;
+          let e = seen.get(id);
+          if (!e) {
+            e = {
+              text: String(q.text || q.question_text || "").replace(/<[^>]*>/g, ""),
+              marks: q.marks,
+              locs: [],
+            };
+            seen.set(id, e);
+          }
+          e.locs.push({ set: k, no });
+        }
       }
     }
-    return out.sort((x, y) => y.pct - x.pct);
+    // Only questions that straddle two or more DIFFERENT sets.
+    return [...seen.values()].filter(
+      (e) => new Set(e.locs.map((l) => l.set)).size > 1,
+    );
   });
 
   /**
@@ -121,15 +151,6 @@
     ),
   );
 
-  const maxSimilarity = $derived(
-    setPairs.length ? setPairs[0].pct : 0,
-  );
-  const simTone = (pct: number) =>
-    pct === 0
-      ? "text-emerald-400"
-      : pct <= 20
-        ? "text-amber-400"
-        : "text-red-400";
 
   function initializeSets() {
     const paper = data?.paper;
@@ -1427,52 +1448,6 @@
         {/each}
       </div>
 
-      <!-- Set similarity: how much overlap between any two sets -->
-      {#if setPairs.length}
-        <div class="relative mr-2">
-          <button
-            onclick={() => (showSimilarity = !showSimilarity)}
-            title="How many questions the sets share"
-            class="inline-flex items-center gap-2 px-4 py-3 bg-white/5 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-white/10 uppercase tracking-tight"
-          >
-            <span class="text-gray-400">Overlap</span>
-            <span class={simTone(maxSimilarity)}>{maxSimilarity}%</span>
-          </button>
-
-          {#if showSimilarity}
-            <div
-              class="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 z-50"
-            >
-              <p
-                class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3"
-              >
-                Questions shared between sets
-              </p>
-              <div class="space-y-1.5">
-                {#each setPairs as p}
-                  <div class="flex items-center justify-between text-[11px]">
-                    <span class="font-bold text-gray-300"
-                      >Set {p.a} ↔ Set {p.b}</span
-                    >
-                    <span class="flex items-center gap-2">
-                      <span class="text-gray-500">{p.shared} shared</span>
-                      <span class="font-black tabular-nums {simTone(p.pct)}"
-                        >{p.pct}%</span
-                      >
-                    </span>
-                  </div>
-                {/each}
-              </div>
-              <p class="text-[9px] text-gray-500 mt-3 leading-relaxed">
-                {maxSimilarity === 0
-                  ? "No overlap — every set is unique."
-                  : "Overlap means the bank was too thin to give each set its own question. Add more questions and regenerate."}
-              </p>
-            </div>
-          {/if}
-        </div>
-      {/if}
-
       <a
         href="/assessments/generate"
         class="inline-flex items-center px-4 py-3 bg-white/5 text-indigo-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-indigo-500/30"
@@ -1616,6 +1591,72 @@
       </button>
     </div>
   </div>
+
+  <!-- Repeated questions across sets — named, not just a percentage -->
+  {#if duplicateAcrossSets.length}
+    <div
+      class="mb-4 rounded-2xl border border-amber-500/40 bg-amber-50 dark:bg-amber-500/5 overflow-hidden print:hidden"
+    >
+      <div
+        class="px-5 py-3 flex items-center gap-3 border-b border-amber-500/30"
+      >
+        <span
+          class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white text-[11px] font-black"
+          >{duplicateAcrossSets.length}</span
+        >
+        <p
+          class="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300"
+        >
+          Repeated across sets
+        </p>
+        <p class="text-[11px] font-semibold text-amber-700/70 dark:text-amber-200/60 ml-auto">
+          Swap one copy so every set is unique
+        </p>
+      </div>
+
+      <div class="divide-y divide-amber-500/20">
+        {#each duplicateAcrossSets as d}
+          <div class="px-5 py-3 flex items-start gap-4">
+            <div class="min-w-0 flex-1">
+              <p class="text-[12px] font-medium text-gray-800 dark:text-gray-200 leading-snug line-clamp-2">
+                {d.text}
+              </p>
+              <p
+                class="text-[10px] font-black text-amber-700/80 dark:text-amber-400/70 uppercase tracking-widest mt-1"
+              >
+                {d.marks} Marks
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 shrink-0">
+              {#each d.locs as loc}
+                <button
+                  onclick={() => (activeSet = loc.set)}
+                  title="Go to Set {loc.set}"
+                  class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border
+                  {activeSet === loc.set
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-white dark:bg-white/5 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-500/20'}"
+                >
+                  Set {loc.set} · Q{loc.no}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else}
+    <div
+      class="mb-4 px-5 py-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/5 flex items-center gap-2.5 print:hidden"
+    >
+      <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg
+      >
+      <p class="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+        No repeated questions — every set is unique
+      </p>
+    </div>
+  {/if}
 
   <!-- Paper View (Crescent Template) -->
   <div
