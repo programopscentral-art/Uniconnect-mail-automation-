@@ -5,6 +5,7 @@
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import { installPaperUi } from "./shared/paperUi.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import { buildSwappedQuestion } from "./shared/swapQuestion";
 
   let {
     paperMeta = $bindable({}),
@@ -171,16 +172,10 @@
       ? currentSetData
       : currentSetData.questions;
     const slot = arr[swapContext.slotIndex];
-    const nQ = {
-      id: question.id,
-      question_id: question.id,
-      text: question.question_text || question.text,
-      question_text: question.question_text || question.text,
-      marks: question.marks || swapContext.currentMark,
-      options: question.options,
-      co: question.target_co || question.co_indicator || "CO1",
-      rbtl: question.bloom_level || question.k_level || "K1",
-    };
+    const nQ = buildSwappedQuestion(question, {
+      marks: question.marks ?? swapContext.currentMark,
+      part: swapContext.part,
+    });
     if (slot.type === "OR_GROUP") {
       if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
       else slot.choice2.questions = [nQ];

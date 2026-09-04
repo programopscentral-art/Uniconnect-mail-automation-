@@ -91,9 +91,19 @@ export function installPaperUi(opts: {
 		},
 	};
 
+	/**
+	 * Re-save the current set without changing it. Shared leaf components (e.g.
+	 * the MCQ option editor) mutate a question in place and then call this so the
+	 * edit is persisted, without every call site having to thread a callback.
+	 */
+	function touch() {
+		opts.persist(opts.getSet());
+	}
+
 	setContext("paper:drag", dragCtl);
 	setContext("paper:move", move);
 	setContext("paper:showSolutions", () => ui.showSolutions);
+	setContext("paper:touch", touch);
 
-	return { ui, move, drag: dragCtl };
+	return { ui, move, drag: dragCtl, touch };
 }

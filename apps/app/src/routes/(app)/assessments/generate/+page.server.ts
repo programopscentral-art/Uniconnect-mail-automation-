@@ -1,6 +1,7 @@
 import { getAllUniversities, db } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { isExamGlobal } from '$lib/server/assessment_access';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     try {
         console.log('[GENERATE_LOAD] universityId:', universityId, 'batchId:', batchId);
         const [universities, batchesResult, branchesResult] = await Promise.all([
-            locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([]),
+            isExamGlobal(locals.user) ? getAllUniversities() : Promise.resolve([]),
             universityId ? db.query('SELECT * FROM assessment_batches WHERE university_id = $1 ORDER BY name ASC', [universityId]) : Promise.resolve({ rows: [] }),
             universityId ? db.query(
                 batchId

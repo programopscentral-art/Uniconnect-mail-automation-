@@ -1,6 +1,7 @@
 import { error } from "@sveltejs/kit";
 import { getAssessmentTemplateById, getUniversityAssets } from "@uniconnect/shared";
 import type { PageServerLoad } from "./$types";
+import { isExamGlobal } from "$lib/server/assessment_access";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     const { id } = params;
@@ -18,9 +19,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     // SECURITY CHECK: Hard Isolation
     const canAccess =
-        user.role === "ADMIN" ||
-        user.role === "PROGRAM_OPS" ||
-        user.university_id === template.university_id;
+        isExamGlobal(user) || user.university_id === template.university_id;
 
     if (!canAccess) {
         throw error(403, "Forbidden: You do not have access to this template");
