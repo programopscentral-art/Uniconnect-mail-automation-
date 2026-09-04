@@ -48,6 +48,65 @@
   let editableSets = $state<any>(initializeSets());
   let paperMeta = $state(initializeMeta());
 
+  /* ─────────── Set similarity ───────────
+     Sets are meant to be different papers. This surfaces how many questions any
+     two sets actually share, so an overlap is visible before the paper goes out
+     rather than being discovered in the exam hall. */
+  let showSimilarity = $state(false);
+
+  function questionIdsOf(set: any): Set<string> {
+    const ids = new Set<string>();
+    const arr = Array.isArray(set) ? set : set?.questions || [];
+    for (const slot of arr) {
+      if (!slot) continue;
+      const qs: any[] = [];
+      if (slot.type === "OR_GROUP") {
+        qs.push(
+          ...(slot.choice1?.questions || []),
+          ...(slot.choice2?.questions || []),
+        );
+      } else if (slot.questions) qs.push(...slot.questions);
+      else qs.push(slot);
+      for (const q of qs) {
+        const id = q?.question_id || q?.id;
+        // Placeholders for unfilled slots aren't real questions.
+        if (id && !String(id).startsWith("missing-")) ids.add(String(id));
+      }
+    }
+    return ids;
+  }
+
+  const setPairs = $derived.by(() => {
+    const present = availableSets.filter((s) => editableSets?.[s]);
+    const idMap = new Map<string, Set<string>>(
+      present.map((s) => [s, questionIdsOf(editableSets[s])]),
+    );
+    const out: Array<{ a: string; b: string; shared: number; pct: number }> = [];
+    for (let i = 0; i < present.length; i++) {
+      for (let j = i + 1; j < present.length; j++) {
+        const A = idMap.get(present[i])!;
+        const B = idMap.get(present[j])!;
+        if (!A.size || !B.size) continue;
+        let shared = 0;
+        A.forEach((id) => { if (B.has(id)) shared++; });
+        // % of the smaller set that is duplicated in the other.
+        const pct = Math.round((shared / Math.min(A.size, B.size)) * 100);
+        out.push({ a: present[i], b: present[j], shared, pct });
+      }
+    }
+    return out.sort((x, y) => y.pct - x.pct);
+  });
+
+  const maxSimilarity = $derived(
+    setPairs.length ? setPairs[0].pct : 0,
+  );
+  const simTone = (pct: number) =>
+    pct === 0
+      ? "text-emerald-400"
+      : pct <= 20
+        ? "text-amber-400"
+        : "text-red-400";
+
   function initializeSets() {
     const paper = data?.paper;
     if (!paper)
@@ -1343,6 +1402,52 @@
           </button>
         {/each}
       </div>
+
+      <!-- Set similarity: how much overlap between any two sets -->
+      {#if setPairs.length}
+        <div class="relative mr-2">
+          <button
+            onclick={() => (showSimilarity = !showSimilarity)}
+            title="How many questions the sets share"
+            class="inline-flex items-center gap-2 px-4 py-3 bg-white/5 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-white/10 uppercase tracking-tight"
+          >
+            <span class="text-gray-400">Overlap</span>
+            <span class={simTone(maxSimilarity)}>{maxSimilarity}%</span>
+          </button>
+
+          {#if showSimilarity}
+            <div
+              class="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 z-50"
+            >
+              <p
+                class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3"
+              >
+                Questions shared between sets
+              </p>
+              <div class="space-y-1.5">
+                {#each setPairs as p}
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="font-bold text-gray-300"
+                      >Set {p.a} ↔ Set {p.b}</span
+                    >
+                    <span class="flex items-center gap-2">
+                      <span class="text-gray-500">{p.shared} shared</span>
+                      <span class="font-black tabular-nums {simTone(p.pct)}"
+                        >{p.pct}%</span
+                      >
+                    </span>
+                  </div>
+                {/each}
+              </div>
+              <p class="text-[9px] text-gray-500 mt-3 leading-relaxed">
+                {maxSimilarity === 0
+                  ? "No overlap — every set is unique."
+                  : "Overlap means the bank was too thin to give each set its own question. Add more questions and regenerate."}
+              </p>
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <a
         href="/assessments/generate"
