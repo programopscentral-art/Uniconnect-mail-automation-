@@ -512,6 +512,26 @@
       {/if}
 
       <a
+        href="/assessments/question-bank"
+        class="inline-flex items-center px-6 py-3 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:border-indigo-600 transition-all shadow-lg shadow-indigo-500/5 active:scale-95"
+        title="Upload a question bank across many subjects (university or global)"
+      >
+        <svg
+          class="w-5 h-5 mr-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+            d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"
+          /></svg
+        >
+        Question Bank
+      </a>
+
+      <a
         href="/assessments/portion-import"
         class="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
         title="Load exam portion (modules/topics) from a Google Sheet"
