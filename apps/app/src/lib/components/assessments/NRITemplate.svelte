@@ -246,7 +246,7 @@
         <tbody>
           <tr>
             <td class="w-[18%] align-middle border-none">
-              <AssessmentLogo src="/nri-logo.png" name="" class="h-28 w-auto object-contain" />
+              <AssessmentLogo src="/nri-logo.png" name="" class="max-w-full max-h-24 w-auto h-auto object-contain" />
             </td>
             <td class="w-[64%] text-center align-middle border-none">
               <h1 class="text-[#E31E24] text-[20pt] font-black leading-none mb-1">NRI INSTITUTE OF TECHNOLOGY</h1>
