@@ -167,6 +167,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const globalUsedHashes = new Set<string>();
 
         /**
+         * Even spread across units.
+         *
+         * An 'Auto' slot used to take the next unit off a single blind cursor
+         * shared by all four sets, and the unit was only a *preference* — tiers 5
+         * and 6 drop it — so the counts drifted and a set could lean heavily on
+         * one unit. We now count the unit each question ACTUALLY came from and
+         * hand the next Auto slot the least-used unit, which self-corrects
+         * whenever a relaxation pulls from elsewhere. Reset per set so every set
+         * covers the units evenly, not just the paper as a whole.
+         */
+        let unitUse = new Map<string, number>();
+        const noteUnitUse = (unitId?: string | null) => {
+            if (!unitId) return;
+            unitUse.set(unitId, (unitUse.get(unitId) || 0) + 1);
+        };
+        const pickBalancedUnit = (allowed: string[]): string | undefined => {
+            if (!allowed.length) return undefined;
+            let best = allowed[0];
+            let bestN = unitUse.get(best) ?? 0;
+            for (const u of allowed) {
+                const n = unitUse.get(u) ?? 0;
+                if (n < bestN) { best = u; bestN = n; }
+            }
+            return best;
+        };
+
+        /**
          * Slots we could not fill from the question bank.
          * Previously an empty pool THREW and aborted the whole paper (users saw
          * generation "get stuck"). We now emit a placeholder for the slot, keep
@@ -335,7 +362,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     findInPool(null, true, false, false, false);
             }
 
-            // 6. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness AND keep Type)
+            // 6. Emergency Fallback — relax marks/bloom/unit but KEEP type.
             if (!choice) {
                 // Try finding any question that matches the searched type (even if marks/bloom/unit differ)
                 let candidates = pool.filter(q => isMatch(q, null, true, false, false, false));
@@ -353,13 +380,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                 }
-                for (const cand of candidates) {
-                    const isUsedInCurrentSet = setQuestions.some((s: any) =>
+
+                // 6a. Still insist on paper-wide uniqueness. This tier used to skip
+                // the global check entirely, which is how the same question ended up
+                // in Set A and Set B whenever the bank was thin.
+                choice = candidates.find(c =>
+                    !globalUsedIds.has(c.id) &&
+                    !globalUsedTexts.has(normalizeText(c.question_text)) &&
+                    !globalUsedHashes.has(createQuestionHash(c))
+                ) || null;
+
+                // 6b. Last resort: the bank genuinely cannot fill every set without
+                // repeating. Reuse across sets rather than leaving a hole, but report
+                // it so the user knows to add questions.
+                if (!choice) {
+                    const reusable = candidates.find(cand => !setQuestions.some((s: any) =>
                         (s.questions || s.choice1?.questions || s.choice2?.questions || []).some((q: any) => q.id === cand.id)
-                    );
-                    if (!isUsedInCurrentSet) {
-                        choice = cand;
-                        break;
+                    ));
+                    if (reusable) {
+                        choice = reusable;
+                        unfilled.push({
+                            set: setName, section: sectionTitle, slot: slotId,
+                            type: searchType, marks: targetMarks,
+                            reason: `Repeated across sets — the bank has too few ${searchType} questions to give every set a unique one. Add more to remove the overlap.`,
+                        });
                     }
                 }
             }
@@ -377,6 +421,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             globalUsedIds.add(choice.id);
             globalUsedTexts.add(normalizeText(choice.question_text));
             globalUsedHashes.add(createQuestionHash(choice));
+            // Count the unit this question really came from (which may differ from
+            // the preferred one if a tier relaxed the unit filter).
+            noteUnitUse(choice.unit_id);
 
             const coCode = (coRes.rows.find(c => c.id === choice.co_id) || coRes.rows.find(c => c.id === co_id))?.code || 'CO1';
 
@@ -392,18 +439,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const sets = ['A', 'B', 'C', 'D'];
         const generatedSets: Record<string, any> = {};
         const setDebugInfo: Record<string, string[]> = {};
-        let unitIdx = 0;
 
         // 2. THE SINGLE NESTED LOOP (The ONLY place selection happens)
         for (const setName of sets) {
             const setQuestions: any[] = [];
             const setAnswerSheet: any[] = [];
+            // Balance units within EACH set, not just across the paper.
+            unitUse = new Map<string, number>();
 
             for (const section of template_config) {
                 const part = section.part || (section.title?.toUpperCase().includes('PART A') ? 'A' : (section.title?.toUpperCase().includes('PART B') ? 'B' : 'C'));
 
                 for (const slot of section.slots) {
-                    const uId = slot.unit === 'Auto' ? (unit_ids[unitIdx++ % unit_ids.length] || questionsRes.rows[0]?.unit_id) : slot.unit;
+                    const autoUnits = unit_ids.length
+                        ? unit_ids
+                        : Array.from(new Set(questionsRes.rows.map((q: any) => q.unit_id).filter(Boolean)));
+                    const uId = slot.unit === 'Auto'
+                        ? (pickBalancedUnit(autoUnits) || questionsRes.rows[0]?.unit_id)
+                        : slot.unit;
 
                     if (slot.type === 'OR_GROUP') {
                         const questions1 = [];
