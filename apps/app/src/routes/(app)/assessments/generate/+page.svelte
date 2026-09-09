@@ -466,6 +466,56 @@
       return;
     }
 
+    if (isGMRIT) {
+      /* GMRIT Continuous Assessment (CA) sheet:
+           PART A — 4 questions x 2 marks  = 8
+           PART B — 4 OR groups x 8 marks  = 32   (printed 5..12)
+         One question per OR choice, so no a/b sub-parts. */
+      const partA = {
+        title: "PART A (4 X 2= 8 Marks)",
+        part: "A",
+        answered_count: 4,
+        marks_per_q: 2,
+        slots: Array.from({ length: 4 }, (_, i) => ({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i + 1}`,
+          part: "A",
+          type: "SINGLE",
+          marks: 2,
+          unit: "Auto",
+          qType: "SHORT",
+          bloom: "ANY",
+        })),
+      };
+      structure.push(partA);
+
+      const partB = {
+        title: "PART B (4 X 8= 32 Marks)",
+        part: "B",
+        answered_count: 4,
+        marks_per_q: 8,
+        slots: Array.from({ length: 4 }, (_, i) => {
+          const n = 5 + i * 2; // 5|6, 7|8, 9|10, 11|12
+          return {
+            id: `B-${i}-${Math.random()}`,
+            label: `${n}`,
+            displayLabel: `${n} or ${n + 1}`,
+            part: "B",
+            type: "OR_GROUP",
+            marks: 8,
+            choices: [
+              { label: `${n}`, unit: "Auto", qType: "LONG", marks: 8, bloom: "ANY" },
+              { label: `${n + 1}`, unit: "Auto", qType: "LONG", marks: 8, bloom: "ANY" },
+            ],
+          };
+        }),
+      };
+      structure.push(partB);
+
+      paperStructure = structure;
+      return;
+    }
+
     if (isTakshashila) {
       // PART A: 10 MCQ (1M each)
       const partA = {
@@ -1623,6 +1673,11 @@
       String(selectedUniversityId).toLowerCase().startsWith("c40ed15d") ||
       (typeof window !== "undefined" &&
         window.location.search.toLowerCase().includes("c40ed15d")),
+  );
+  const isGMRIT = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("gmrit") ||
+      activeUniversity?.name?.toLowerCase()?.includes("gmr institute") ||
+      activeUniversity?.slug?.includes("gmrit"),
   );
   const isTakshashila = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("takshashila") ||
