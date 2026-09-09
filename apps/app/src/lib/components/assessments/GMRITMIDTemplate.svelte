@@ -16,12 +16,16 @@
    *   - rebuildAnswerSheet()      → identical to Standard/Crescent implementation
    *
    * GMRIT-specific (allowed customisation only):
-   *   - 3-column letterhead, metadata grid, Part A / Part B table shells
+   *   - Centred logo letterhead, metadata grid, Part A / Part B table shells
    *   - Question numbering *presentation*: an OR group prints as two numbered
-   *     questions (6 & 7), each carrying its own a/b sub-parts. Slot order and
-   *     grouping are never recomputed — only how the number is displayed.
+   *     questions (5 & 6, 7 & 8 …). Slot order and grouping are never
+   *     recomputed — only how the number is displayed.
+   *   - The a/b sub-part column follows the DATA: it appears only when a slot
+   *     actually carries sub-questions, so the current single-question-per-choice
+   *     paper matches the official sheet while older a/b papers still render.
    */
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
+  import AssessmentLogo from "./shared/AssessmentLogo.svelte";
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
@@ -361,57 +365,23 @@
         </div>
       {/if}
 
-      <!-- ══════════ LETTERHEAD (3 columns: spacer | name | logo) ══════════ -->
-      <table class="w-full border-collapse gm-plain mb-1">
-        <colgroup>
-          <!-- Left spacer matches the logo column so the university name stays
-               centred on the page with the logo sitting top-right. -->
-          <col style="width: 145px;" />
-          <col />
-          <col style="width: 145px;" />
-        </colgroup>
-        <tbody>
-          <tr>
-            <td class="align-middle"></td>
-            <td class="text-center align-middle">
-              <div
-                class="font-bold text-[20pt] leading-[1.1] text-[#1F3864] tracking-tight"
-              >
-                <AssessmentEditable
-                  value={paperMeta.univ_line_1 || "GMRIT Deemed to be University"}
-                  onUpdate={(v: string) => updateText(v, "META", "univ_line_1")}
-                  class="w-full text-center"
-                />
-              </div>
-              <div class="font-bold text-[11.5pt] leading-tight">
-                <AssessmentEditable
-                  value={paperMeta.univ_line_1_2 || "(Autonomous Batch)"}
-                  onUpdate={(v: string) => updateText(v, "META", "univ_line_1_2")}
-                  class="w-full text-center"
-                />
-              </div>
-            </td>
-            <td class="align-middle text-right">
-              {#if paperMeta.logo_url !== ""}
-                <img
-                  src={paperMeta.logo_url || "/gmrit-logo.png"}
-                  alt="GMRIT Deemed to be University"
-                  class="h-[56px] w-auto max-w-full object-contain inline-block align-middle"
-                  onerror={(e) =>
-                    ((e.currentTarget as HTMLImageElement).style.display =
-                      "none")}
-                />
-              {/if}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- ══════════ LETTERHEAD — logo only, centred ══════════ -->
+      <div class="text-center mb-2.5">
+        <AssessmentLogo
+          src={paperMeta.logo_url || "/gmrit-logo.png"}
+          name={paperMeta.univ_line_1 || "GMRIT Deemed to be University"}
+          class="h-[58px] w-auto max-w-full object-contain inline-block"
+          fallbackClass="text-[15pt]"
+        />
+      </div>
 
-      <!-- Paper title -->
-      <div class="font-bold text-[11.5pt] mb-1.5">
+      <!-- Paper title — centred -->
+      <div class="font-bold text-[12pt] text-center mb-2.5">
         <AssessmentEditable
-          value={paperMeta.exam_title || "Continuous Assessment Question Paper"}
+          value={paperMeta.exam_title ||
+            "Continuous Assessment (CA) Question Paper"}
           onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+          class="w-full text-center"
         />
       </div>
 
@@ -454,7 +424,7 @@
                 onUpdate={(v: string) => updateText(v, "META", "semester")}
               />
             </td>
-            <td class="p-1 font-bold">Test</td>
+            <td class="p-1 font-bold">CA</td>
             <td class="p-1 text-center">
               <AssessmentEditable
                 value={paperMeta.test_no || "1 (2)"}
@@ -539,6 +509,12 @@
       {#each paperStructure as section, sIdx}
         {@const sectionQs = questionsByPart(section.part)}
         {@const isPartA = section.part === "A"}
+        {@const hasSubParts = sectionQs.some((sl: any) =>
+          sl?.type === "OR_GROUP"
+            ? (sl.choice1?.questions?.length || 0) > 1 ||
+              (sl.choice2?.questions?.length || 0) > 1
+            : (sl?.questions?.length || 0) > 1)}
+        {@const colCount = 4 + (hasSubParts ? 1 : 0) + (isPartA ? 0 : 1)}
 
         <!-- Section heading (centred, above the table — GMRIT house style) -->
         <div class="text-center font-bold text-[10.5pt] mt-4 mb-1">
@@ -570,7 +546,7 @@
         >
           <colgroup>
             <col style="width: 34px;" />
-            {#if !isPartA}<col style="width: 26px;" />{/if}
+            {#if hasSubParts}<col style="width: 26px;" />{/if}
             <col />
             <col style="width: 74px;" />
             <col style="width: 48px;" />
@@ -578,8 +554,8 @@
           </colgroup>
           <thead>
             <tr>
-              <th class="p-1 font-bold text-center">No{isPartA ? "." : ""}</th>
-              {#if !isPartA}<th class="p-1"></th>{/if}
+              <th class="p-1 font-bold text-center">{isPartA ? "No." : ""}</th>
+              {#if hasSubParts}<th class="p-1"></th>{/if}
               <th class="p-1 font-bold text-center">
                 {#if isPartA}
                   Question (s)
@@ -608,7 +584,7 @@
                     <td class="p-1.5 text-center align-top font-bold">
                       {#if qIdx === 0}{startNo}{/if}
                     </td>
-                    {#if !isPartA}
+                    {#if hasSubParts}
                       <td class="p-1.5 text-center align-top font-bold">
                         {subLabel(q, qIdx)}
                       </td>
@@ -701,7 +677,7 @@
                 <!-- ── OR separator ── -->
                 <tr>
                   <td
-                    colspan={isPartA ? 4 : 6}
+                    colspan={colCount}
                     class="p-0.5 text-center font-bold text-[9.5pt]"
                     >OR</td
                   >
@@ -713,7 +689,7 @@
                     <td class="p-1.5 text-center align-top font-bold">
                       {#if qIdx === 0}{startNo + 1}{/if}
                     </td>
-                    {#if !isPartA}
+                    {#if hasSubParts}
                       <td class="p-1.5 text-center align-top font-bold">
                         {subLabel(q, qIdx)}
                       </td>
@@ -810,7 +786,7 @@
                     <td class="p-1.5 text-center align-top font-bold">
                       {#if qIdx === 0}{startNo}{/if}
                     </td>
-                    {#if !isPartA}
+                    {#if hasSubParts}
                       <td class="p-1.5 text-center align-top font-bold">
                         {qs.length > 1 ? subLabel(q, qIdx) : ""}
                       </td>
