@@ -466,6 +466,49 @@
       return;
     }
 
+    if (isSubharti) {
+      /* Subharti sessional sheet (Max 20):
+           SECTION-A  Q1 - 6 one-line parts x 1 mark   (attempt all)
+           SECTION-B  Q2 - 3 parts x 3 marks           (attempt any two -> 6)
+           SECTION-C  Q3 - 3 parts x 4 marks           (attempt any two -> 8)
+         One slot per section carrying its sub-parts, so the printed paper shows
+         (A)(B)(C)… beneath each Qn. */
+      const band = (
+        part: string,
+        marksEach: number,
+        parts: number,
+        instruction: string,
+        qType: string,
+      ) => ({
+        title: `SECTION-${part}`,
+        part,
+        instruction,
+        answered_count: parts,
+        marks_per_q: marksEach,
+        slots: [
+          {
+            id: `${part}-0-${Math.random()}`,
+            label: part === "A" ? "1" : part === "B" ? "2" : "3",
+            part,
+            type: "SINGLE",
+            marks: marksEach * parts, // split evenly across the sub-parts
+            unit: "Auto",
+            qType,
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: parts,
+          },
+        ],
+      });
+
+      structure.push(band("A", 1, 6, "One Line Answer  Attempt All Parts", "VERY_SHORT"));
+      structure.push(band("B", 3, 3, "Attempt Any Two Parts", "SHORT"));
+      structure.push(band("C", 4, 3, "Attempt Any Two Parts", "LONG"));
+
+      paperStructure = structure;
+      return;
+    }
+
     if (isGMRIT) {
       /* GMRIT Continuous Assessment (CA) sheet:
            PART A — 4 questions x 2 marks  = 8
@@ -1666,13 +1709,21 @@
   const isCrescent = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("crescent"),
   );
+  const isSubharti = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("subharti") ||
+      activeUniversity?.name?.toLowerCase()?.includes("subharthi") ||
+      activeUniversity?.slug?.includes("subharti"),
+  );
+  // NOTE: the "viv" test below also matches "Swami Vivekanand Subharti
+  // University", which would hand Subharti the VGU structure - hence the guard.
   const isVGU = $derived(
-    activeUniversity?.name?.toLowerCase()?.includes("viv") ||
+    !isSubharti &&
+    (activeUniversity?.name?.toLowerCase()?.includes("viv") ||
       activeUniversity?.name?.toLowerCase()?.includes("vgu") ||
       activeUniversity?.slug?.includes("vgu") ||
       String(selectedUniversityId).toLowerCase().startsWith("c40ed15d") ||
       (typeof window !== "undefined" &&
-        window.location.search.toLowerCase().includes("c40ed15d")),
+        window.location.search.toLowerCase().includes("c40ed15d"))),
   );
   const isGMRIT = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("gmrit") ||

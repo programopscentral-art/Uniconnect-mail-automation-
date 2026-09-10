@@ -19,6 +19,7 @@ import NRITemplate from "./NRITemplate.svelte";
 import SGU50SEMTemplate from "./SGU50SEMTemplate.svelte";
 import SGU75SEMTemplate from "./SGU75SEMTemplate.svelte";
 import StandardTemplate from "./StandardTemplate.svelte";
+import SubharthiMidTemplate from "./SubharthiMidTemplate.svelte";
 import SVYASATemplate from "./SVYASATemplate.svelte";
 import TakshashilaTemplate from "./TakshashilaTemplate.svelte";
 import VGUMidTemplate from "./VGUMidTemplate.svelte";
@@ -52,6 +53,7 @@ export const TEMPLATE_REGISTRY: Record<string, any> = {
 	nrimid: NRITemplate,
 	gmritmid: GMRITMIDTemplate,
 	mrvmid: MallareddyTemplate,
+	subhartimid: SubharthiMidTemplate,
 	sgusem50: SGU50SEMTemplate,
 	sgusem75: SGU75SEMTemplate,
 };
