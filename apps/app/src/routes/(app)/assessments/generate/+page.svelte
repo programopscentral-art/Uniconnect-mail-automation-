@@ -499,6 +499,12 @@
             bloom: "ANY",
             hasSubQuestions: true,
             numSubQuestions: parts,
+            // explicit per-part marks so the editor shows them and the
+            // generator does not have to infer an even split
+            sub_marks: Array.from({ length: parts }, () => marksEach),
+            marks_a: marksEach,
+            marks_b: marksEach,
+            marks_c: parts >= 3 ? marksEach : undefined,
           },
         ],
       });
@@ -1503,6 +1509,60 @@
       });
     });
     paperStructure = [...paperStructure];
+  }
+
+  /* ── Sub-question parts (A, B, C, …) ──────────────────────────────────
+     Per-part marks live in `slot.sub_marks`, an array, so a question can have
+     any number of parts. marks_a / marks_b / marks_c are mirrored for the first
+     three so papers and generator paths built before this keep working. */
+  const SUB_LETTERS = "abcdefghij";
+  const subLabelsFor = (n: number) =>
+    SUB_LETTERS.slice(0, Math.max(1, Math.min(n || 2, 10))).split("").join(",");
+
+  function ensureSubMarks(slot: any) {
+    const n = Math.max(1, Math.min(Number(slot.numSubQuestions) || 2, 10));
+    if (!Array.isArray(slot.sub_marks)) {
+      // seed from the legacy fields, else an even split of the slot's marks
+      const legacy = [slot.marks_a, slot.marks_b, slot.marks_c];
+      const even = Number(slot.marks || 0) / n;
+      slot.sub_marks = Array.from({ length: n }, (_, i) => {
+        const v = Number(legacy[i]);
+        return Number.isFinite(v) && v > 0 ? v : Number(even.toFixed(2));
+      });
+    }
+    while (slot.sub_marks.length < n) {
+      const even = Number(slot.marks || 0) / n;
+      slot.sub_marks.push(Number((slot.sub_marks.at(-1) ?? even) || even));
+    }
+    if (slot.sub_marks.length > n) slot.sub_marks.length = n;
+    return slot.sub_marks;
+  }
+
+  /** Keep marks_a/b/c and the slot total in step with sub_marks. */
+  function syncSubMarks(slot: any) {
+    const arr = ensureSubMarks(slot);
+    slot.marks_a = arr[0];
+    slot.marks_b = arr[1];
+    slot.marks_c = arr[2];
+    slot.marks = arr.reduce((t: number, v: any) => t + (Number(v) || 0), 0);
+  }
+
+  function setSubCount(slot: any, n: number) {
+    const next = Math.max(1, Math.min(Number(n) || 1, 10));
+    slot.numSubQuestions = next;
+    slot.hasSubQuestions = true;
+    ensureSubMarks(slot);
+    syncSubMarks(slot);
+    paperStructure = [...paperStructure];
+  }
+
+  const subMarkAt = (slot: any, i: number) => ensureSubMarks(slot)[i] ?? "";
+
+  function setSubMark(slot: any, i: number, raw: string) {
+    const arr = ensureSubMarks(slot);
+    const v = parseFloat(raw);
+    arr[i] = Number.isFinite(v) ? v : 0;
+    syncSubMarks(slot);
   }
 
   function addSingleSlot(section: any) {
@@ -2687,7 +2747,7 @@
           </div>
 
           <div class="space-y-12">
-            {#each paperStructure as section}
+            {#each paperStructure as section (section.id ?? section.part)}
               <div class="space-y-4">
                 <div class="flex flex-col gap-3 px-2">
                   <div class="flex items-center justify-between gap-4">
@@ -2831,7 +2891,7 @@
                 <div
                   class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                 >
-                  {#each section.slots as slot}
+                  {#each section.slots as slot (slot.id)}
                     {#if slot.type === "SINGLE"}
                       <div
                         class="p-6 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] shadow-sm hover:shadow-md transition-all space-y-4 relative group"
@@ -2899,41 +2959,46 @@
                             class="bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100/50 dark:border-amber-800/50 space-y-3"
                             transition:slide
                           >
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 flex-wrap">
                               <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest">Sub-Questions:</span>
-                              <div class="flex gap-1">
-                                {#each [2, 3] as n}
-                                  <button
-                                    onclick={() => {
-                                      slot.numSubQuestions = n;
-                                      if (n >= 3 && !slot.marks_c) slot.marks_c = slot.marks_a || Math.round(slot.marks / n);
-                                    }}
-                                    class="px-3 py-1 rounded-lg text-[10px] font-black border transition-all
-                                      {(slot.numSubQuestions || 2) === n
-                                        ? 'bg-amber-500 text-white border-amber-500'
-                                        : 'bg-white dark:bg-slate-900 text-amber-600 border-amber-200 dark:border-amber-800'}"
-                                  >{n} ({#if n === 2}a,b{:else}a,b,c{/if})</button>
-                                {/each}
+                              <!-- Any number of parts (A, B, C, D, E, F …), not just 2 or 3 -->
+                              <div class="flex items-center gap-1">
+                                <button
+                                  onclick={() => setSubCount(slot, (slot.numSubQuestions || 2) - 1)}
+                                  aria-label="One fewer sub-question"
+                                  class="w-6 h-6 rounded-lg bg-white dark:bg-slate-900 text-amber-600 border border-amber-200 dark:border-amber-800 text-[12px] font-black leading-none hover:bg-amber-500 hover:text-white transition-all"
+                                >−</button>
+                                <input
+                                  type="number" min="1" max="10"
+                                  value={slot.numSubQuestions || 2}
+                                  oninput={(e) => setSubCount(slot, parseInt(e.currentTarget.value, 10))}
+                                  class="w-12 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg p-1 text-[11px] font-black text-amber-900 dark:text-amber-100 text-center"
+                                />
+                                <button
+                                  onclick={() => setSubCount(slot, (slot.numSubQuestions || 2) + 1)}
+                                  aria-label="One more sub-question"
+                                  class="w-6 h-6 rounded-lg bg-white dark:bg-slate-900 text-amber-600 border border-amber-200 dark:border-amber-800 text-[12px] font-black leading-none hover:bg-amber-500 hover:text-white transition-all"
+                                >+</button>
                               </div>
+                              <span class="text-[9px] font-black text-amber-500/70 uppercase tracking-widest">
+                                ({subLabelsFor(slot.numSubQuestions || 2)})
+                              </span>
                             </div>
-                            <div class="grid gap-4" style="grid-template-columns: repeat({slot.numSubQuestions || 2}, 1fr);">
-                              <div class="space-y-1">
-                                <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (a)</span>
-                                <input type="number" step="0.5" bind:value={slot.marks_a}
-                                  class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
-                              </div>
-                              <div class="space-y-1">
-                                <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (b)</span>
-                                <input type="number" step="0.5" bind:value={slot.marks_b}
-                                  class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
-                              </div>
-                              {#if (slot.numSubQuestions || 2) >= 3}
+
+                            <div class="grid gap-3" style="grid-template-columns: repeat({Math.min(slot.numSubQuestions || 2, 6)}, minmax(0, 1fr));">
+                              {#each Array(slot.numSubQuestions || 2) as _, si}
                                 <div class="space-y-1">
-                                  <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (c)</span>
-                                  <input type="number" step="0.5" bind:value={slot.marks_c}
-                                    class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
+                                  <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1"
+                                    >Marks ({String.fromCharCode(97 + si)})</span
+                                  >
+                                  <input
+                                    type="number" step="0.5"
+                                    value={subMarkAt(slot, si)}
+                                    oninput={(e) => setSubMark(slot, si, e.currentTarget.value)}
+                                    class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm"
+                                  />
                                 </div>
-                              {/if}
+                              {/each}
                             </div>
                           </div>
                         {/if}
@@ -3105,7 +3170,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          {#each slot.choices as choice, idx}
+                          {#each slot.choices as choice, idx (idx)}
                             <div
                               class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-white dark:border-slate-800 shadow-sm space-y-5"
                             >

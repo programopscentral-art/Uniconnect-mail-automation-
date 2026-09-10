@@ -561,8 +561,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             const subQCount = slot.numSubQuestions || 2;
                             const subLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
                             for (let j = 0; j < subQCount; j++) {
+                                /*
+                                 * Per-sub-part marks. sub_marks is the general form
+                                 * (any number of parts); marks_a/marks_b remain
+                                 * supported for the two-part papers built before it.
+                                 * Falling back to an even split keeps older
+                                 * structures working unchanged.
+                                 */
                                 let targetMarks = slot.marks / subQCount;
-                                if (subQCount === 2) {
+                                const perPart = Array.isArray(slot.sub_marks) ? Number(slot.sub_marks[j]) : NaN;
+                                if (Number.isFinite(perPart) && perPart > 0) {
+                                    targetMarks = perPart;
+                                } else if (subQCount === 2) {
                                     targetMarks = j === 0 ? slot.marks_a : slot.marks_b;
                                 }
 
