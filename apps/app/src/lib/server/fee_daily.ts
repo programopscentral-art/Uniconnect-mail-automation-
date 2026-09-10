@@ -16,6 +16,7 @@
  */
 import { db } from '@uniconnect/shared';
 import { todayInIST } from './fee_access';
+import { loadOverviewAggregates } from './fee_overview_v2';
 
 export interface DailyUniversityRow {
     university_id: string;
@@ -29,37 +30,28 @@ export interface DailyUniversityRow {
 }
 
 /**
- * Live per-university counts for a window, computed from the current
- * fee_student_payments state (i.e. "as of right now").
+ * Live per-university counts for a window, "as of right now".
+ *
+ * Reads through loadOverviewAggregates rather than aggregating
+ * fee_student_payments directly. Those rows are a frozen copy for the 17
+ * universities the sheet maintains as roll-up rows only, so counting them
+ * here made the Daily Report contradict the Overview on the same screen —
+ * 5,881 fully paid against the sheet's 6,267.
  */
 async function computeLiveDaily(window_id: string): Promise<DailyUniversityRow[]> {
-    const r = await db.query(
-        `SELECT u.id AS university_id,
-                COALESCE(u.short_name, u.name)                              AS university_name,
-                COUNT(fsp.id)::int                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int      AS fully_paid,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int  AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int      AS yet_to_pay,
-                COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
-                COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
-           FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-           JOIN universities u ON u.id = fsp.university_id
-          WHERE bp.window_id = $1
-          GROUP BY u.id, COALESCE(u.short_name, u.name)
-          ORDER BY university_name`,
-        [window_id],
-    );
-    return r.rows.map((row: any) => ({
-        university_id: row.university_id,
-        university_name: row.university_name,
-        total: Number(row.total),
-        fully_paid: Number(row.fully_paid),
-        partial: Number(row.partial),
-        yet_to_pay: Number(row.yet_to_pay),
-        total_payable: Number(row.total_payable),
-        total_paid: Number(row.total_paid),
-    }));
+    const agg = await loadOverviewAggregates(window_id);
+    return agg.per_university
+        .map(u => ({
+            university_id: u.id,
+            university_name: u.name,
+            total: u.total,
+            fully_paid: u.fully_paid,
+            partial: u.partial,
+            yet_to_pay: u.yet_to_pay,
+            total_payable: u.total_payable,
+            total_paid: u.total_paid,
+        }))
+        .sort((a, b) => a.university_name.localeCompare(b.university_name));
 }
 
 /**

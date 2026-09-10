@@ -394,8 +394,53 @@
     } catch (e: any) { flash(e?.message || 'Lock failed', 'err'); }
     finally { lockingDaily = false; }
   }
+  // ─── Movement (day-over-day) ────────────────────────────────────────
+  type MoveRow = {
+    university_id: string; university_name: string;
+    base_fully: number | null; base_paid: number | null;
+    now_strength: number; now_fully: number; now_partial: number; now_yet: number;
+    now_payable: number; now_paid: number;
+    delta_fully: number | null; delta_paid: number | null;
+  };
+  type Movement = {
+    date: string; base_date: string | null; is_today: boolean;
+    latest_slot_label: string | null; base_slot_label: string | null;
+    baseline_missing: boolean;
+    universities: MoveRow[];
+    totals: { base_fully: number | null; base_paid: number | null;
+              now_strength: number; now_fully: number; now_partial: number; now_yet: number;
+              now_payable: number; now_paid: number;
+              delta_fully: number | null; delta_paid: number | null; };
+    series: Array<{ slot: number; label: string; paid: number; fully: number }>;
+    available_dates: string[];
+  };
+  let moveBase = $state<string>('');       // '' = previous calendar day
+  let moveData = $state<Movement | null>(null);
+  let moveLoading = $state(false);
+  async function loadMovement() {
+    if (!data.activeWindow) return;
+    if (!dailyDate) dailyDate = istToday();
+    moveLoading = true;
+    try {
+      const p = new URLSearchParams({ date: dailyDate });
+      if (moveBase) p.set('base', moveBase);
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/movement?${p}`);
+      if (res.ok) moveData = await res.json();
+    } finally { moveLoading = false; }
+  }
+  /** Signed money, e.g. "+₹14.05 L" / "−₹2.30 L" / "no change". */
+  function fmtDeltaMoney(v: number | null): string {
+    if (v === null) return '—';
+    if (v === 0) return 'no change';
+    return (v > 0 ? '+' : '−') + fmtMoney(Math.abs(v));
+  }
+  function deltaClass(v: number | null): string {
+    if (v === null || v === 0) return 'text-zinc-500';
+    return v > 0 ? 'text-emerald-300' : 'text-red-300';
+  }
+
   $effect(() => {
-    if (tab === 'daily' && data.activeWindow) { dailyDate; loadDaily(); }
+    if (tab === 'daily' && data.activeWindow) { dailyDate; moveBase; loadDaily(); loadMovement(); }
   });
 
   // ─── Tag Cases ──────────────────────────────────────────────────────
@@ -1316,29 +1361,146 @@
         <!-- ═══ DAILY REPORT ═══ -->
         <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
           <div class="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="daily-date">Report date</label>
-              <input id="daily-date" type="date" max={istToday()} bind:value={dailyDate}
-                class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" />
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="daily-date">Report date</label>
+                <input id="daily-date" type="date" max={istToday()} bind:value={dailyDate}
+                  class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="daily-base">Compare against</label>
+                <input id="daily-base" type="date" max={istToday()} bind:value={moveBase}
+                  class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" />
+                <p class="mt-1 text-[10px] text-zinc-500">
+                  Blank = previous day's close{#if moveData?.available_dates?.length} · {moveData.available_dates.length} day{moveData.available_dates.length === 1 ? '' : 's'} sampled{/if}
+                </p>
+              </div>
             </div>
             <div class="flex items-center gap-2">
               {#if dailyData}
                 {#if dailyData.locked}
-                  <span class="rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[11px] font-semibold text-zinc-300">🔒 Locked (frozen at 8 PM IST)</span>
+                  <span class="rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[11px] font-semibold text-zinc-300">🔒 Locked (frozen at 9:15 PM IST)</span>
                 {:else if dailyData.is_today}
-                  <span class="rounded-md border border-emerald-800 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">● Live · locks at 8 PM IST</span>
+                  <span class="rounded-md border border-emerald-800 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">● Live · locks at 9:15 PM IST</span>
                 {:else}
                   <span class="rounded-md border border-amber-800 bg-amber-950/40 px-2.5 py-1 text-[11px] font-semibold text-amber-200">No snapshot for this date</span>
                 {/if}
               {/if}
               {#if data.userIsAdmin && dailyData?.is_today && !dailyData?.locked}
-                <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50" disabled={lockingDaily} onclick={lockDailyNow} title="Freeze today's counts now (normally automatic at 8 PM IST)">
+                <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50" disabled={lockingDaily} onclick={lockDailyNow} title="Freeze today's counts now (normally automatic at 9:15 PM IST)">
                   {lockingDaily ? 'Locking…' : 'Lock now'}
                 </button>
               {/if}
             </div>
           </div>
         </section>
+
+        <!-- ── Movement: what changed since the comparison day ── -->
+        {#if moveLoading && !moveData}
+          <div class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 py-10 text-center text-sm text-zinc-500">Loading movement…</div>
+        {:else if moveData}
+          {@const mv = moveData}
+          {#if mv.universities.length === 0}
+            <div class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-6 text-center text-sm text-zinc-400">
+              No intraday samples for {mv.date} yet.
+              <div class="mt-1 text-xs text-zinc-500">Samples are taken every 30 minutes on each sync — the first one appears within a few minutes.</div>
+            </div>
+          {:else}
+            {#if mv.baseline_missing}
+              <div class="mb-3 rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-2.5 text-xs text-amber-200">
+                No samples exist for {mv.base_date}, so there is nothing to compare against yet.
+                Today's figures are shown on their own; the first day-over-day comparison becomes available once a full day has been sampled.
+              </div>
+            {/if}
+            <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-4 py-3.5">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">
+                  Collected {mv.is_today ? 'today' : `on ${mv.date}`}
+                </div>
+                <div class="mt-1 text-3xl font-bold tabular-nums {deltaClass(mv.totals.delta_paid)}">{fmtDeltaMoney(mv.totals.delta_paid)}</div>
+                <div class="mt-1 text-[11px] text-zinc-400">
+                  {#if mv.base_slot_label}vs {mv.base_date} close ({mv.base_slot_label}){:else}no baseline{/if}
+                </div>
+              </div>
+              <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-4 py-3.5">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Students newly fully paid</div>
+                <div class="mt-1 text-3xl font-bold tabular-nums {deltaClass(mv.totals.delta_fully)}">
+                  {mv.totals.delta_fully === null ? '—' : (mv.totals.delta_fully > 0 ? '+' : '') + mv.totals.delta_fully}
+                </div>
+                <div class="mt-1 text-[11px] text-zinc-400">
+                  {mv.totals.now_fully} of {mv.totals.now_strength} fully paid now
+                </div>
+              </div>
+              <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3.5">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Total collected</div>
+                <div class="mt-1 text-3xl font-bold tabular-nums text-zinc-100">{fmtMoney(mv.totals.now_paid)}</div>
+                <div class="mt-1 text-[11px] text-zinc-400">
+                  as of {mv.latest_slot_label ?? '—'} IST{#if mv.is_today} · live{/if}
+                </div>
+              </div>
+            </div>
+
+            <!-- Intraday shape of the day: cumulative collected per 30-min bucket -->
+            {#if mv.series.length > 1}
+              {@const lo = Math.min(...mv.series.map(x => x.paid))}
+              {@const hi = Math.max(...mv.series.map(x => x.paid))}
+              {@const span = hi - lo || 1}
+              <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <div class="mb-2 flex items-baseline justify-between">
+                  <div>
+                    <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Through the day · {mv.date}</div>
+                    <div class="text-sm font-semibold">Total collected, sampled every 30 min</div>
+                  </div>
+                  <div class="text-[11px] text-zinc-500">{mv.series[0].label} → {mv.series[mv.series.length - 1].label} IST</div>
+                </div>
+                <div class="flex h-24 items-end gap-[2px]">
+                  {#each mv.series as pt (pt.slot)}
+                    <div class="group relative flex-1 rounded-t bg-emerald-600/70 hover:bg-emerald-400"
+                         style="height: {8 + ((pt.paid - lo) / span) * 92}%"
+                         title="{pt.label} IST · {fmtMoney(pt.paid)} collected · {pt.fully} fully paid"></div>
+                  {/each}
+                </div>
+              </section>
+            {/if}
+
+            <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+              <header class="border-b border-zinc-800 px-4 py-3">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                  Movement per university · {mv.date}{#if mv.base_date} vs {mv.base_date}{/if}
+                </div>
+                <div class="text-sm font-semibold">Biggest movers first</div>
+              </header>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                    <tr>
+                      <th class="px-3 py-2.5 text-left">University</th>
+                      <th class="px-3 py-2.5 text-right">Collected {mv.base_date ? 'then' : ''}</th>
+                      <th class="px-3 py-2.5 text-right">Collected now</th>
+                      <th class="px-3 py-2.5 text-right">Δ Amount</th>
+                      <th class="px-3 py-2.5 text-right text-emerald-400">Δ Fully paid</th>
+                      <th class="px-3 py-2.5 text-right">Fully paid now</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-zinc-800">
+                    {#each mv.universities as u (u.university_id)}
+                      <tr class={u.delta_paid ? '' : 'opacity-60'}>
+                        <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums text-zinc-400">{u.base_paid === null ? '—' : fmtMoney(u.base_paid)}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(u.now_paid)}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums font-semibold {deltaClass(u.delta_paid)}">{fmtDeltaMoney(u.delta_paid)}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums font-semibold {deltaClass(u.delta_fully)}">
+                          {u.delta_fully === null ? '—' : u.delta_fully === 0 ? '—' : (u.delta_fully > 0 ? '+' : '') + u.delta_fully}
+                        </td>
+                        <td class="px-3 py-2.5 text-right tabular-nums text-zinc-300">{u.now_fully} / {u.now_strength}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {/if}
+        {/if}
 
         {#if dailyLoading}
           <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>

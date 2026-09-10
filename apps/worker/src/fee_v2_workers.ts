@@ -135,12 +135,14 @@ async function runSnapshotCycle(): Promise<void> {
 
 // ── Daily-report lock loop ────────────────────────────────────────────────
 //
-// At 20:00 IST every day, freeze each active window's per-university counts
+// At 21:15 IST every day, freeze each active window's per-university counts
 // into fee_daily_university_snapshot (locked=true) so the Daily Report stops
-// moving after 8 PM. The freeze itself lives in the app
+// moving after the team stops entering. The freeze itself lives in the app
 // (/api/fees2/windows/:id/daily POST → captureDailyUniversitySnapshot), keyed
 // idempotently by (window, university, date) — a restart in the fire window is
-// a no-op. Fires anywhere in 20:00–20:14 IST for restart tolerance.
+// a no-op. Fires anywhere in 21:15–21:29 IST for restart tolerance —
+// finance enters until ~9 PM, so the old 20:00 freeze cut an hour off every
+// day's final number.
 
 let dailyLockRunning = false;
 
@@ -150,7 +152,7 @@ async function runDailyLockCycle(): Promise<void> {
     try {
         const now = new Date();
         const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-        if (!(ist.getUTCHours() === 20 && ist.getUTCMinutes() < 15)) return;
+        if (!(ist.getUTCHours() === 21 && ist.getUTCMinutes() >= 15 && ist.getUTCMinutes() < 30)) return;
 
         if (!INTERNAL_TOKEN) {
             console.error('[FEE2_DAILY_LOCK] ❌ INTERNAL_SYNC_TOKEN not set — daily lock skipped.');

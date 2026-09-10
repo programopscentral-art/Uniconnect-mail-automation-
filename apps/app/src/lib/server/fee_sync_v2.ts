@@ -29,6 +29,7 @@
  */
 import { db, getAllUniversities } from '@uniconnect/shared';
 import { fetchSheetTab } from './fee_import';
+import { captureCollectionSample } from './fee_samples';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -895,6 +896,16 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
           WHERE id = $1`,
         [window_id, summary.errors.length > 0 ? summary.errors.map(e => `${e.sub_sheet}: ${e.message}`).join(' | ') : null, JSON.stringify(summary)],
     );
+
+    // Intraday sample for the day-over-day movement view. Buckets to 30
+    // minutes, so running every ~5 minutes just refreshes the current bucket.
+    // Never allowed to fail the sync — a missed sample is a gap in a chart,
+    // not a data-integrity problem.
+    try {
+        await captureCollectionSample(window_id);
+    } catch (e) {
+        console.warn('[fee_sync_v2] intraday sample failed:', (e as Error).message);
+    }
 
     // Daily snapshot for the trend chart. Idempotent — ON CONFLICT keeps the
     // FIRST snapshot per (window, IST-date), so a 5-min auto-sync doesn't
