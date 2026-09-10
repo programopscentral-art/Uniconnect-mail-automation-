@@ -16,7 +16,11 @@
    *   - rebuildAnswerSheet()  → identical to Standard/Crescent implementation
    *
    * Subharti-specific (allowed customisation only):
-   *   - the bordered letterhead block + two-column metadata
+   *   - the bordered letterhead block + two-column metadata. Its fixed lines use
+   *     sub_* metadata keys because the paper page force-fills univ_line_1 with
+   *     the DB university name, univ_line_2 with "(DEEMED TO BE UNIVERSITY)" and
+   *     instructions with "ANSWER ALL QUESTIONS" on EVERY paper - a plain
+   *     `|| default` fallback here could never win. Each stays editable.
    *   - SECTION-A/B/C bands, each carrying one Qn row with its instruction and
    *     the Marks / COs / BTL column heads, then its (A)(B)(C) sub-part rows
    *   - question numbering *presentation* only: Q1, Q2, Q3 and (A)(B)(C)
@@ -351,17 +355,17 @@
       <div class="sub-box px-3 pt-2 pb-2.5">
         <div class="text-center font-bold text-[16pt] leading-tight tracking-wide">
           <AssessmentEditable
-            value={paperMeta.univ_line_1 ||
+            value={paperMeta.sub_univ_name ||
               "SWAMI VIVEKANAND SUBHARTI UNIVERSITY"}
-            onUpdate={(v: string) => updateText(v, "META", "univ_line_1")}
+            onUpdate={(v: string) => updateText(v, "META", "sub_univ_name")}
             class="w-full text-center"
           />
         </div>
         <div class="text-center text-[6.5pt] leading-tight">
           <AssessmentEditable
-            value={paperMeta.univ_line_2 ||
+            value={paperMeta.sub_univ_act ||
               "(Established under U.P. Govt. Act no. 29 of 2008 and approved under section 2(f) of UGC Act 1956)"}
-            onUpdate={(v: string) => updateText(v, "META", "univ_line_2")}
+            onUpdate={(v: string) => updateText(v, "META", "sub_univ_act")}
             class="w-full text-center"
           />
         </div>
@@ -374,9 +378,9 @@
         </div>
         <div class="text-center font-bold text-[9.5pt] leading-tight mt-0.5">
           <AssessmentEditable
-            value={paperMeta.exam_title ||
+            value={paperMeta.sub_exam_line ||
               "I Sessional Examination Even Sem. 2025-26 (Feb. 2026)"}
-            onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+            onUpdate={(v: string) => updateText(v, "META", "sub_exam_line")}
             class="w-full text-center"
           />
         </div>
@@ -461,9 +465,9 @@
       <!-- ══════════ GLOBAL INSTRUCTION ══════════ -->
       <div class="sub-box border-t-0 px-2 py-1 text-[9pt] font-semibold">
         <AssessmentEditable
-          value={paperMeta.instructions ||
+          value={paperMeta.sub_instructions ||
             "All Sections are compulsory and attempt as per instruction."}
-          onUpdate={(v: string) => updateText(v, "META", "instructions")}
+          onUpdate={(v: string) => updateText(v, "META", "sub_instructions")}
         />
       </div>
 

@@ -146,8 +146,11 @@
       if (v.selectedTemplateId) selectedTemplateId = v.selectedTemplateId;
       if (v.selectedTemplate) selectedTemplate = v.selectedTemplate;
       if (v.generationMode) generationMode = v.generationMode;
-      if (Array.isArray(v.paperStructure) && v.paperStructure.length)
-        paperStructure = v.paperStructure;
+      /* paperStructure is deliberately NOT restored. It is derived from the
+         university + exam type, and initializeStructure() bails out early when
+         a structure already exists — so a snapshot from an earlier session
+         silently blocked the university's own layout (a Subharti paper came out
+         with the generic PART A / Q1..Q9 shape). Let it rebuild. */
     } catch {
       /* a corrupt snapshot must never block the page */
     }
@@ -173,7 +176,6 @@
       selectedTemplateId,
       selectedTemplate,
       generationMode,
-      paperStructure: $state.snapshot(paperStructure),
     };
     try {
       sessionStorage.setItem(WIZARD_KEY, JSON.stringify(snap));
