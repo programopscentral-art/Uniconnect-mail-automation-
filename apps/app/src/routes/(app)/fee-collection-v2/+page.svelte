@@ -5,7 +5,7 @@
 
   type Window = {
     id: string; name: string; sheet_id: string; status: string;
-    batch_subsheets: string; dates_subsheet: string | null; dropout_subsheet: string | null;
+    batch_subsheets: string; dates_subsheet: string | null; dropout_subsheet: string | null; dashboard_subsheet: string | null;
     auto_sync_enabled: boolean; auto_sync_interval_minutes: number;
     last_synced_at: string | null; last_sync_error: string | null;
   };
@@ -15,7 +15,7 @@
   type TrendPoint = { d: string; students: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: string; total_paid: string; pct: number; is_estimated: boolean; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
   type PerUni = { id: string; name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
-  type PerBatchUni = { batch_period_id: string; batch_start_year: number; university_id: string; university_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
+  type PerBatchUni = { batch_period_id: string; batch_start_year: number; university_id: string; university_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; source: 'sheet' | 'students'; student_rows: number; students_imported_at: string | null; };
   type Overview = {
     totals: { students: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; collection_pct: number; paid_from_fully: number; paid_from_partial: number; };
     per_batch: PerBatch[];
@@ -24,6 +24,7 @@
     university_dates: UniDate[];
     per_university: PerUni[];
     per_batch_university: PerBatchUni[];
+    provenance?: { sheet: number; students: number; stale_student_universities: string[] };
     dropout_reasons: Array<{ reason: string; c: number }>;
     trend: TrendPoint[];
   };
@@ -95,13 +96,15 @@
   // per-university collection start date (= "Registration Start Date").
   let selPerUni = $derived.by(() => {
     const dateMap = new Map<string, string | null>((data.overview?.university_dates ?? []).map(d => [d.university_id, d.collection_start_date] as [string, string | null]));
-    const m = new Map<string, { university_id: string; university_name: string; total: number; fully: number; partial: number; yet: number; payable: number; paid: number; reg_start: string | null }>();
+    const m = new Map<string, { university_id: string; university_name: string; total: number; fully: number; partial: number; yet: number; payable: number; paid: number; reg_start: string | null; from_sheet: boolean; student_rows: number }>();
     for (const r of (data.overview?.per_batch_university ?? [])) {
       if (!selBatchIds.includes(r.batch_period_id)) continue;
-      const cur = m.get(r.university_id) ?? { university_id: r.university_id, university_name: r.university_name, total: 0, fully: 0, partial: 0, yet: 0, payable: 0, paid: 0, reg_start: dateMap.get(r.university_id) ?? null };
+      const cur = m.get(r.university_id) ?? { university_id: r.university_id, university_name: r.university_name, total: 0, fully: 0, partial: 0, yet: 0, payable: 0, paid: 0, reg_start: dateMap.get(r.university_id) ?? null, from_sheet: false, student_rows: 0 };
       cur.total += Number(r.total); cur.fully += Number(r.fully_paid);
       cur.partial += Number(r.partial); cur.yet += Number(r.yet_to_pay);
       cur.payable += Number(r.total_payable); cur.paid += Number(r.total_paid);
+      if (r.source === 'sheet') cur.from_sheet = true;
+      cur.student_rows += Number(r.student_rows ?? 0);
       m.set(r.university_id, cur);
     }
     return Array.from(m.values()).sort((a, b) => b.payable - a.payable);
@@ -170,7 +173,7 @@
   let showSetup = $state(false);
   let setupForm = $state({
     id: '', name: '', sheet_id: '',
-    batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout',
+    batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', dashboard_subsheet: 'dashboard',
     auto_sync_enabled: true, auto_sync_interval_minutes: 5,
   });
   let savingSetup = $state(false);
@@ -291,7 +294,7 @@
   }
 
   function openCreateSetup() {
-    setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', auto_sync_enabled: true, auto_sync_interval_minutes: 5 };
+    setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', dashboard_subsheet: 'dashboard', auto_sync_enabled: true, auto_sync_interval_minutes: 5 };
     setupError = null; showSetup = true;
     discovery = null; discoveryError = null; discoveryLoading = false;
     showAdvanced = false;
@@ -301,6 +304,7 @@
       id: w.id, name: w.name, sheet_id: w.sheet_id,
       batch_subsheets: w.batch_subsheets, dates_subsheet: w.dates_subsheet || 'semester 3 dates',
       dropout_subsheet: w.dropout_subsheet || 'dropout',
+      dashboard_subsheet: w.dashboard_subsheet || 'dashboard',
       auto_sync_enabled: w.auto_sync_enabled, auto_sync_interval_minutes: w.auto_sync_interval_minutes,
     };
     setupError = null; showSetup = true;
@@ -822,20 +826,29 @@
                     <th class="px-3 py-2.5 text-right text-amber-400">Partial</th>
                     <th class="px-3 py-2.5 text-right text-red-400">Yet</th>
                     <th class="px-3 py-2.5 text-right">Collected</th>
-                    <th class="px-3 py-2.5 text-right">Coll %</th>
+                    <th class="px-3 py-2.5 text-right" title="Money collected ÷ money payable">Coll %</th>
+                    <th class="px-3 py-2.5 text-right" title="Students fully paid ÷ strength — the sheet's &quot;Fully Paid %&quot; column">Fully paid %</th>
                     <th class="px-3 py-2.5 text-left">Registration start</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800">
                   {#each selPerUni as u (u.university_id)}
                     <tr>
-                      <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                      <td class="px-3 py-2.5 font-medium">
+                        {u.university_name}
+                        {#if u.from_sheet && u.student_rows === 0}
+                          <span class="ml-1.5 rounded bg-zinc-800 px-1.5 py-0.5 align-middle text-[9px] uppercase tracking-wider text-zinc-400" title="These totals come from the sheet's roll-up tab. This university has no per-student sub-sheet, so the Students tab is empty for it.">roll-up only</span>
+                        {:else if u.from_sheet && u.student_rows !== u.total}
+                          <span class="ml-1.5 rounded bg-amber-950 px-1.5 py-0.5 align-middle text-[9px] uppercase tracking-wider text-amber-400" title={`Totals are the sheet's. Student-level detail we hold (${u.student_rows} rows) is older than the roll-up (${u.total} students) — the sheet no longer publishes a per-student tab for this university.`}>detail stale</span>
+                        {/if}
+                      </td>
                       <td class="px-3 py-2.5 text-right tabular-nums">{u.total}</td>
                       <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300">{u.fully}</td>
                       <td class="px-3 py-2.5 text-right tabular-nums text-amber-300">{u.partial}</td>
                       <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{u.yet}</td>
                       <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(u.paid)}</td>
                       <td class="px-3 py-2.5 text-right tabular-nums font-semibold {fmtPct(u.paid, u.payable) === '—' ? 'text-zinc-500' : ''}">{fmtPct(u.paid, u.payable)}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-emerald-200">{u.total > 0 ? ((u.fully / u.total) * 100).toFixed(2) + '%' : '—'}</td>
                       <td class="px-3 py-2.5 text-zinc-400">
                         {#if u.reg_start}
                           {fmtRegDate(u.reg_start)}
@@ -845,7 +858,7 @@
                     </tr>
                   {/each}
                   {#if selPerUni.length === 0}
-                    <tr><td colspan="8" class="px-3 py-8 text-center text-sm text-zinc-500">No data for the selected batches.</td></tr>
+                    <tr><td colspan="9" class="px-3 py-8 text-center text-sm text-zinc-500">No data for the selected batches.</td></tr>
                   {/if}
                 </tbody>
               </table>
@@ -2101,6 +2114,11 @@
                 <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dropout">Dropout sub-sheet name</label>
                 <input id="setup-dropout" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dropout_subsheet} />
               </div>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dashboard">Roll-up (dashboard) sub-sheet name</label>
+              <input id="setup-dashboard" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dashboard_subsheet} />
+              <p class="mt-1 text-[10px] leading-relaxed text-zinc-500">The tab with one row per university (University / batch / Payable / Paid / counts / Total Strength). Authoritative for the Overview — universities that appear only here, with no per-student sub-sheet, still report accurate totals.</p>
             </div>
             <label class="flex items-center gap-2 text-xs text-zinc-200">
               <input type="checkbox" bind:checked={setupForm.auto_sync_enabled} class="accent-blue-500" />

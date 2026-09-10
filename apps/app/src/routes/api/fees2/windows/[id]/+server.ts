@@ -24,6 +24,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
     if (body.batch_subsheets !== undefined) set('batch_subsheets', String(body.batch_subsheets).trim());
     if (body.dates_subsheet !== undefined) set('dates_subsheet', String(body.dates_subsheet).trim() || null);
     if (body.dropout_subsheet !== undefined) set('dropout_subsheet', String(body.dropout_subsheet).trim() || null);
+    if (body.dashboard_subsheet !== undefined) set('dashboard_subsheet', String(body.dashboard_subsheet).trim() || null);
     if (body.auto_sync_enabled !== undefined) set('auto_sync_enabled', !!body.auto_sync_enabled);
     if (body.auto_sync_interval_minutes !== undefined) set('auto_sync_interval_minutes', Number(body.auto_sync_interval_minutes) || 30);
     if (body.status !== undefined) {

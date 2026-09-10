@@ -13,6 +13,7 @@
 import { db, sendEmail } from '@uniconnect/shared';
 import { getEmailUniversityScope, scopeLabel, getUniversityAvailability, type UniversityScope } from './fee_scope';
 import { NIAT_LOGO_B64 } from './niat_logo_b64';
+import { loadOverviewAggregates, type PerBatchRow } from './fee_overview_v2';
 
 export const FIXED_SNAPSHOT_RECIPIENTS = [
     'karthik@nxtwave.tech',
@@ -51,44 +52,38 @@ export async function buildSnapshot(
     window_name: string,
     scope: UniversityScope = { type: 'all', universityIds: null },
 ): Promise<SnapshotData> {
-    // Scope filter — when 'subset', restrict to those university IDs.
-    // When 'all', no filter.
-    const params: unknown[] = [window_id];
-    let scopeFilter = '';
-    if (scope.type === 'subset') {
-        params.push(scope.universityIds);
-        scopeFilter = ` AND fsp.university_id = ANY($2::uuid[])`;
-    }
-    const perBatch = await db.query(
-        `SELECT bp.display_name,
-                COUNT(fsp.id)::int                                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int                     AS fully_paid,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int                 AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int                     AS yet_to_pay,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int                      AS dropouts,
-                COALESCE(SUM(fsp.payable), 0)                                               AS total_payable,
-                COALESCE(SUM(fsp.paid), 0)                                                  AS total_paid,
-                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0)         AS paid_from_fully,
-                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0)     AS paid_from_partial
-           FROM fee_batch_period bp
-           LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id${scopeFilter}
-          WHERE bp.window_id = $1
-          GROUP BY bp.id, bp.batch_start_year
-          ORDER BY bp.batch_start_year DESC`,
-        params,
+    // Aggregates come from the shared Overview loader so the email, the
+    // dashboard and the exports can never disagree: the sheet's own
+    // per-university roll-up wins wherever it covers a (batch, university),
+    // and per-student aggregation fills the rest.
+    const agg = await loadOverviewAggregates(
+        window_id,
+        scope.type === 'subset' ? (scope.universityIds ?? []) : undefined,
     );
-    let students = 0, fully = 0, partial = 0, yet = 0, dropouts = 0;
+
+    // Dropouts come from the dropout sub-sheet, not from tag_case.
+    const dropParams: unknown[] = [window_id];
+    let dropFilter = '';
+    if (scope.type === 'subset') {
+        dropParams.push(scope.universityIds);
+        dropFilter = ' AND university_id = ANY($2::uuid[])';
+    }
+    const dropRes = await db.query(
+        `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1${dropFilter}`,
+        dropParams,
+    );
+    const dropouts = Number(dropRes.rows[0]?.n ?? 0);
+
+    let students = 0, fully = 0, partial = 0, yet = 0;
     let totalPayable = 0, totalPaid = 0, paidFully = 0, paidPartial = 0;
-    const batches = perBatch.rows.map((b: any) => {
-        const t = Number(b.total), fp = Number(b.fully_paid), p = Number(b.partial);
-        const yt = Number(b.yet_to_pay), dr = Number(b.dropouts);
-        const tp = Number(b.total_payable), tpd = Number(b.total_paid);
-        const pf = Number(b.paid_from_fully), pp = Number(b.paid_from_partial);
-        students += t; fully += fp; partial += p; yet += yt; dropouts += dr;
-        totalPayable += tp; totalPaid += tpd; paidFully += pf; paidPartial += pp;
-        return { display_name: b.display_name, total: t, fully_paid: fp, partial: p,
-                 yet_to_pay: yt, dropouts: dr, total_payable: tp, total_paid: tpd,
-                 paid_from_fully: pf, paid_from_partial: pp };
+    const batches = agg.per_batch.map((b: PerBatchRow) => {
+        students += b.total; fully += b.fully_paid; partial += b.partial; yet += b.yet_to_pay;
+        totalPayable += b.total_payable; totalPaid += b.total_paid;
+        paidFully += b.paid_from_fully; paidPartial += b.paid_from_partial;
+        return { display_name: b.display_name, total: b.total, fully_paid: b.fully_paid,
+                 partial: b.partial, yet_to_pay: b.yet_to_pay, dropouts: 0,
+                 total_payable: b.total_payable, total_paid: b.total_paid,
+                 paid_from_fully: b.paid_from_fully, paid_from_partial: b.paid_from_partial };
     });
     const collectionPct = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
     return {

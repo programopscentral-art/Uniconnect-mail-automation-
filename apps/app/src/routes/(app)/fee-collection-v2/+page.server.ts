@@ -9,6 +9,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
+import { loadOverviewAggregates } from '$lib/server/fee_overview_v2';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw redirect(302, '/login');
@@ -18,10 +19,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         id: string; name: string; sheet_id: string; status: string;
         batch_subsheets: string; dates_subsheet: string | null;
         dropout_subsheet: string | null;
+        dashboard_subsheet: string | null;
         auto_sync_enabled: boolean; auto_sync_interval_minutes: number;
         last_synced_at: string | null; last_sync_error: string | null;
     }>(
-        `SELECT id, name, sheet_id, status, batch_subsheets, dates_subsheet, dropout_subsheet,
+        `SELECT id, name, sheet_id, status, batch_subsheets, dates_subsheet, dropout_subsheet, dashboard_subsheet,
                 auto_sync_enabled, auto_sync_interval_minutes,
                 last_synced_at::text AS last_synced_at, last_sync_error
            FROM fee_semester_window
@@ -49,25 +51,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         );
         batches = batchesRes.rows;
 
-        // Inline overview query (same shape as /api/fees2/windows/:id/overview)
-        const perBatch = await db.query(
-            `SELECT bp.id, bp.batch_start_year, bp.semester_number, bp.display_name,
-                    COUNT(fsp.id)::int                                            AS total,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int       AS fully_paid,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int   AS partial,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int       AS yet_to_pay,
-                    COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int        AS dropouts,
-                    COALESCE(SUM(fsp.payable), 0)                                 AS total_payable,
-                    COALESCE(SUM(fsp.paid), 0)                                    AS total_paid,
-                    COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0)     AS paid_from_fully,
-                    COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0) AS paid_from_partial
-               FROM fee_batch_period bp
-               LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
-              WHERE bp.window_id = $1
-              GROUP BY bp.id
-              ORDER BY bp.batch_start_year DESC`,
-            [activeWindow.id],
-        );
+        // Overview aggregates. fee_university_summary (the sheet's own
+        // per-university roll-up) is authoritative wherever it covers a
+        // (batch, university); per-student aggregation fills the rest.
+        const agg = await loadOverviewAggregates(activeWindow.id);
+
         const tagCounts = await db.query(
             `SELECT fsp.tag_case, COUNT(*)::int AS c
                FROM fee_student_payments fsp
@@ -107,24 +95,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
               ORDER BY snapshot_date ASC`,
             [activeWindow.id],
         );
-        const perUniversity = await db.query(
-            `SELECT u.id, u.name,
-                    COUNT(fsp.id)::int                                          AS total,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
-                    COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
-                    COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
-               FROM fee_student_payments fsp
-               JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-               JOIN universities u ON u.id = fsp.university_id
-              WHERE bp.window_id = $1
-              GROUP BY u.id
-              ORDER BY total_payable DESC
-              LIMIT 50`,
-            [activeWindow.id],
-        );
-
         const dates = await db.query(
             `SELECT DISTINCT ON (fum.university_id)
                     u.id AS university_id, u.name AS university_name,
@@ -136,26 +106,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                JOIN universities u ON u.id = fum.university_id
               WHERE bp.window_id = $1
               ORDER BY fum.university_id, fum.updated_at DESC`,
-            [activeWindow.id],
-        );
-
-        // Per-(batch, university) breakdown so the Overview's batch multi-select
-        // can recompute per-university summaries for just the selected batches
-        // client-side (no extra round-trip on toggle).
-        const perBatchUni = await db.query(
-            `SELECT fsp.batch_period_id, bp.batch_start_year,
-                    u.id AS university_id, u.name AS university_name,
-                    COUNT(fsp.id)::int                                          AS total,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
-                    COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
-                    COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
-               FROM fee_student_payments fsp
-               JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-               JOIN universities u ON u.id = fsp.university_id
-              WHERE bp.window_id = $1
-              GROUP BY fsp.batch_period_id, bp.batch_start_year, u.id, u.name`,
             [activeWindow.id],
         );
 
@@ -182,7 +132,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
         let students = 0, fully = 0, partial = 0, yet = 0;
         let totalPayable = 0, totalPaid = 0, paidFromFully = 0, paidFromPartial = 0;
-        for (const b of perBatch.rows) {
+        for (const b of agg.per_batch) {
             students += Number(b.total); fully += Number(b.fully_paid);
             partial += Number(b.partial); yet += Number(b.yet_to_pay);
             totalPayable += Number(b.total_payable); totalPaid += Number(b.total_paid);
@@ -226,12 +176,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             totals: { students, fully_paid: fully, partial, yet_to_pay: yet, dropouts,
                       total_payable: totalPayable, total_paid: totalPaid, collection_pct: collectionPct,
                       paid_from_fully: paidFromFully, paid_from_partial: paidFromPartial },
-            per_batch: perBatch.rows,
+            per_batch: agg.per_batch.map(b => ({ ...b, dropouts: 0 })),
             tag_counts: tagCounts.rows,
             success_coaches: coaches.rows,
             university_dates: dates.rows,
-            per_university: perUniversity.rows,
-            per_batch_university: perBatchUni.rows,
+            per_university: agg.per_university,
+            per_batch_university: agg.per_batch_university,
+            provenance: agg.provenance,
             dropout_reasons: dropoutReasonsR.rows,
             trend: trend.rows,
         };

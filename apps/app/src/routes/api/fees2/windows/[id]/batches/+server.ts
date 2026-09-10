@@ -14,15 +14,29 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         `SELECT bp.id, bp.window_id, bp.batch_start_year, bp.semester_number,
                 bp.subsheet_name, bp.display_name, bp.student_count,
                 bp.last_synced_at,
-                -- live counts in case student_count snapshot is stale
-                COALESCE(stats.total, 0)::int       AS live_total,
-                COALESCE(stats.fully_paid, 0)::int  AS live_fully_paid,
-                COALESCE(stats.partial, 0)::int     AS live_partial,
-                COALESCE(stats.yet_to_pay, 0)::int  AS live_yet_to_pay,
+                -- Live counts. The sheet's own per-university roll-up
+                -- (fee_university_summary) wins when it covers this batch;
+                -- only universities it doesn't cover fall back to counting
+                -- our per-student rows, which for roll-up-only campuses are
+                -- a frozen copy rather than today's numbers.
+                COALESCE(NULLIF(roll.total, 0), stats.total, 0)::int              AS live_total,
+                COALESCE(CASE WHEN roll.total > 0 THEN roll.fully_paid ELSE stats.fully_paid END, 0)::int AS live_fully_paid,
+                COALESCE(CASE WHEN roll.total > 0 THEN roll.partial    ELSE stats.partial    END, 0)::int AS live_partial,
+                COALESCE(CASE WHEN roll.total > 0 THEN roll.yet_to_pay ELSE stats.yet_to_pay END, 0)::int AS live_yet_to_pay,
                 COALESCE(stats.dropouts, 0)::int    AS live_dropouts,
-                COALESCE(stats.total_payable, 0)    AS live_total_payable,
-                COALESCE(stats.total_paid, 0)       AS live_total_paid
+                COALESCE(CASE WHEN roll.total > 0 THEN roll.total_payable ELSE stats.total_payable END, 0) AS live_total_payable,
+                COALESCE(CASE WHEN roll.total > 0 THEN roll.total_paid    ELSE stats.total_paid    END, 0) AS live_total_paid
            FROM fee_batch_period bp
+           LEFT JOIN LATERAL (
+                SELECT SUM(strength)::int       AS total,
+                       SUM(fully_paid)::int     AS fully_paid,
+                       SUM(partially_paid)::int AS partial,
+                       SUM(yet_to_pay)::int     AS yet_to_pay,
+                       SUM(total_payable)       AS total_payable,
+                       SUM(total_paid)          AS total_paid
+                  FROM fee_university_summary
+                 WHERE batch_period_id = bp.id
+           ) roll ON true
            LEFT JOIN LATERAL (
                 SELECT
                     COUNT(*)                                                              AS total,

@@ -13,6 +13,7 @@ import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
 import { getUserUniversityScope, scopeLabel } from '$lib/server/fee_scope';
+import { loadOverviewAggregates } from '$lib/server/fee_overview_v2';
 import ExcelJS from 'exceljs';
 import {
     renderStatusDoughnut, renderBatchCollectionChart,
@@ -103,47 +104,46 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     // ── Queries — every fee_student_payments / fee_dropout_log lookup
     // appends the scopeFilter so a PM's download only includes their own
     // universities. Admins skip the filter and get the full org view.
-    const totals = (await db.query(
-        `SELECT COUNT(fsp.id)::int AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int AS dropouts,
-                COALESCE(SUM(fsp.payable), 0) AS payable,
-                COALESCE(SUM(fsp.paid), 0) AS paid,
-                COALESCE(SUM(fsp.pending), 0) AS pending,
-                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0) AS paid_fully,
-                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0) AS paid_partial
-           FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id WHERE bp.window_id = $1 ${scopeFilter}`,
-        [win.id, ...scopeArg])).rows[0];
+    // Summary figures come from the shared Overview loader so the workbook,
+    // the dashboard and the snapshot email agree: the sheet's own
+    // per-university roll-up wins wherever it covers a (batch, university),
+    // and per-student aggregation fills the rest. The Students sheet below
+    // still lists the row-level detail we hold, which for universities the
+    // sheet maintains as a roll-up only may be older than these totals.
+    const agg = await loadOverviewAggregates(win.id, scope.type === 'subset' ? scope.universityIds : undefined);
 
-    const perBatch = (await db.query(
-        `SELECT bp.display_name, bp.batch_start_year, bp.semester_number,
-                COUNT(fsp.id)::int AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int AS dropouts,
-                COALESCE(SUM(fsp.payable), 0) AS payable,
-                COALESCE(SUM(fsp.paid), 0) AS paid,
-                COALESCE(SUM(fsp.pending), 0) AS pending
-           FROM fee_batch_period bp LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id ${scopeFilter}
-          WHERE bp.window_id = $1 GROUP BY bp.id ORDER BY bp.batch_start_year DESC`,
-        [win.id, ...scopeArg])).rows;
+    const dropCountRes = await db.query(
+        `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1`
+        + (scope.type === 'subset' ? ' AND university_id = ANY($2::uuid[])' : ''),
+        [win.id, ...scopeArg]);
+    const dropoutTotal = Number(dropCountRes.rows[0]?.n ?? 0);
 
-    const perUni = (await db.query(
-        `SELECT u.name,
-                COUNT(fsp.id)::int AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
-                COALESCE(SUM(fsp.payable), 0) AS payable,
-                COALESCE(SUM(fsp.paid), 0) AS paid
-           FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-           JOIN universities u ON u.id = fsp.university_id
-          WHERE bp.window_id = $1 ${scopeFilter} GROUP BY u.id ORDER BY payable DESC`,
-        [win.id, ...scopeArg])).rows;
+    const totals = {
+        total:    agg.per_batch.reduce((a, b) => a + b.total, 0),
+        fully:    agg.per_batch.reduce((a, b) => a + b.fully_paid, 0),
+        partial:  agg.per_batch.reduce((a, b) => a + b.partial, 0),
+        yet:      agg.per_batch.reduce((a, b) => a + b.yet_to_pay, 0),
+        dropouts: dropoutTotal,
+        payable:  agg.per_batch.reduce((a, b) => a + b.total_payable, 0),
+        paid:     agg.per_batch.reduce((a, b) => a + b.total_paid, 0),
+        pending:  agg.per_batch.reduce((a, b) => a + Math.max(b.total_payable - b.total_paid, 0), 0),
+        paid_fully:   agg.per_batch.reduce((a, b) => a + b.paid_from_fully, 0),
+        paid_partial: agg.per_batch.reduce((a, b) => a + b.paid_from_partial, 0),
+    };
+
+    const perBatch = agg.per_batch.map(b => ({
+        display_name: b.display_name, batch_start_year: b.batch_start_year,
+        semester_number: b.semester_number,
+        total: b.total, fully: b.fully_paid, partial: b.partial, yet: b.yet_to_pay,
+        dropouts: 0, payable: b.total_payable, paid: b.total_paid,
+        pending: Math.max(b.total_payable - b.total_paid, 0),
+    }));
+
+    const perUni = agg.per_university.map(u => ({
+        name: u.name, total: u.total, fully: u.fully_paid,
+        partial: u.partial, yet: u.yet_to_pay,
+        payable: u.total_payable, paid: u.total_paid,
+    }));
 
     const students = (await db.query(
         `SELECT bp.display_name AS batch_name, bp.semester_number, u.name AS university,

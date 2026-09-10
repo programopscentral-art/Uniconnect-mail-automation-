@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     const r = await db.query(
         `SELECT id, name, program, sheet_id, status,
                 auto_sync_enabled, auto_sync_interval_minutes,
-                batch_subsheets, dates_subsheet, dropout_subsheet,
+                batch_subsheets, dates_subsheet, dropout_subsheet, dashboard_subsheet,
                 last_synced_at, last_sync_error, last_sync_summary,
                 created_at, updated_at
            FROM fee_semester_window
@@ -36,18 +36,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     const batch_subsheets = String(body.batch_subsheets ?? '').trim();
     const dates_subsheet = String(body.dates_subsheet ?? '').trim() || null;
     const dropout_subsheet = String(body.dropout_subsheet ?? '').trim() || null;
+    const dashboard_subsheet = String(body.dashboard_subsheet ?? 'dashboard').trim() || null;
     const auto_sync_enabled = body.auto_sync_enabled !== false;
     const auto_sync_interval_minutes = Number(body.auto_sync_interval_minutes) || 30;
 
     const r = await db.query(
         `INSERT INTO fee_semester_window
             (name, program, sheet_id, batch_subsheets,
-             dates_subsheet, dropout_subsheet,
+             dates_subsheet, dropout_subsheet, dashboard_subsheet,
              auto_sync_enabled, auto_sync_interval_minutes, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [name, program, sheet_id, batch_subsheets,
-         dates_subsheet, dropout_subsheet,
+         dates_subsheet, dropout_subsheet, dashboard_subsheet,
          auto_sync_enabled, auto_sync_interval_minutes,
          locals.user!.id],
     );

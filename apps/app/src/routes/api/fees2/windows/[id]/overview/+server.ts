@@ -11,28 +11,16 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
+import { loadOverviewAggregates } from '$lib/server/fee_overview_v2';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
     checkFeeAccess(locals, 'view');
     if (!params.id) throw error(400, 'id required');
 
-    // Per-batch totals
-    const perBatch = await db.query(
-        `SELECT bp.id, bp.batch_start_year, bp.semester_number, bp.display_name,
-                COUNT(fsp.id)                                                AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')           AS fully_paid,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')       AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')           AS yet_to_pay,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')            AS dropouts,
-                COALESCE(SUM(fsp.payable), 0)                                AS total_payable,
-                COALESCE(SUM(fsp.paid), 0)                                   AS total_paid
-           FROM fee_batch_period bp
-           LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
-          WHERE bp.window_id = $1
-          GROUP BY bp.id
-          ORDER BY bp.batch_start_year DESC`,
-        [params.id],
-    );
+    // Overview aggregates. The sheet's own per-university roll-up
+    // (fee_university_summary) is authoritative wherever it covers a
+    // (batch, university); per-student aggregation fills the rest.
+    const agg = await loadOverviewAggregates(params.id);
 
     // Tag-case counts across the window
     const tagCounts = await db.query(
@@ -62,25 +50,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         [params.id],
     );
 
-    // Per-(batch, university) breakdown so a batch multi-select can recompute
-    // per-university summaries client-side without another round-trip.
-    const perBatchUni = await db.query(
-        `SELECT fsp.batch_period_id, bp.batch_start_year,
-                u.id AS university_id, u.name AS university_name,
-                COUNT(fsp.id)::int                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
-                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
-                COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
-                COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
-           FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-           JOIN universities u ON u.id = fsp.university_id
-          WHERE bp.window_id = $1
-          GROUP BY fsp.batch_period_id, bp.batch_start_year, u.id, u.name`,
-        [params.id],
-    );
-
     // Per-university dates — pull from any one batch_period since the dates
     // sub-sheet is shared across all batches in the window.
     const dates = await db.query(
@@ -98,14 +67,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     );
 
     // Window-wide totals derived from per-batch
+    // Dropouts come from the dropout sub-sheet, not from tag_case — a
+    // dropout only gets tagged when we can link it to a batch_period, which
+    // fails for anyone absent from the batch sheets.
+    const dropoutsR = await db.query(
+        `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1`,
+        [params.id],
+    );
+    const totalDropouts = Number(dropoutsR.rows[0]?.n ?? 0);
+
     let totalStudents = 0, totalFully = 0, totalPartial = 0, totalYet = 0;
-    let totalDropouts = 0, totalPayable = 0, totalPaid = 0;
-    for (const b of perBatch.rows) {
+    let totalPayable = 0, totalPaid = 0;
+    for (const b of agg.per_batch) {
         totalStudents += Number(b.total);
         totalFully    += Number(b.fully_paid);
         totalPartial  += Number(b.partial);
         totalYet      += Number(b.yet_to_pay);
-        totalDropouts += Number(b.dropouts);
         totalPayable  += Number(b.total_payable);
         totalPaid     += Number(b.total_paid);
     }
@@ -122,8 +99,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             total_paid: totalPaid,
             collection_pct: collectionPct,
         },
-        per_batch: perBatch.rows,
-        per_batch_university: perBatchUni.rows,
+        per_batch: agg.per_batch,
+        per_batch_university: agg.per_batch_university,
+        per_university: agg.per_university,
+        provenance: agg.provenance,
         tag_counts: tagCounts.rows,
         success_coaches: coaches.rows,
         university_dates: dates.rows,

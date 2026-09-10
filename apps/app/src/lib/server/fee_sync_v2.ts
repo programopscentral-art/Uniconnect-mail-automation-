@@ -44,6 +44,7 @@ export interface SyncSummary {
     universities_unmatched: string[];
     dates_rows_upserted: number;
     dropouts_upserted: number;
+    summary_rows_upserted: number;
     errors: Array<{ sub_sheet: string; message: string }>;
     elapsed_ms: number;
 }
@@ -87,19 +88,56 @@ function toNum(v: unknown): number {
 }
 
 /**
- * Resolve a student's payment status purely from the objective paid/payable
- * amounts. The sheet's typed Payment Status column is ignored — it drifts
- * (operators mark "Fully Paid" when paid is ₹50 short of payable, or for
- * students whose fee schedule isn't set up yet) and trusting it inflated
- * the Fully Paid count on every report.
+ * The three statuses the app reports on. Everything the sheet can type has to
+ * land on one of these.
+ */
+export const CANONICAL_STATUSES = ['Fully Paid', 'Partially Paid', 'Yet To Pay'] as const;
+export type CanonicalStatus = typeof CANONICAL_STATUSES[number];
+
+/**
+ * Map whatever finance typed in the sheet's `Payment Status` cell onto one of
+ * the three canonical statuses. Returns null when the cell is blank or says
+ * something we don't recognise, which is the caller's cue to fall back to the
+ * computed rule.
+ */
+export function normalizeSheetStatus(raw: string | null | undefined): CanonicalStatus | null {
+    const k = norm(raw ?? '');
+    if (!k) return null;
+    if (k === 'fullypaid' || k === 'paidfully' || k === 'fullpaid' || k === 'paid' || k === 'completed' || k === 'paymentcompleted') return 'Fully Paid';
+    if (k === 'partiallypaid' || k === 'partialpaid' || k === 'partial' || k === 'partlypaid' || k === 'paidpartially') return 'Partially Paid';
+    if (k === 'yettopay' || k === 'yettopaid' || k === 'nottopay' || k === 'notpaid' || k === 'unpaid' || k === 'nopayment' || k === 'null' || k === 'pending' || k === 'yettostart') return 'Yet To Pay';
+    // Looser fallbacks so a stray suffix ("Fully Paid ✅") still classifies.
+    if (k.startsWith('fully')) return 'Fully Paid';
+    if (k.startsWith('partial') || k.startsWith('partly')) return 'Partially Paid';
+    if (k.startsWith('yetto') || k.startsWith('notpaid') || k.startsWith('unpaid')) return 'Yet To Pay';
+    return null;
+}
+
+/**
+ * Resolve a student's payment status.
+ *
+ * The sheet's typed `Payment Status` column WINS. It used to be read and then
+ * discarded in favour of a strict `paid >= payable` computation, on the theory
+ * that the typed column drifts. It does drift — but it drifts deliberately:
+ * finance marks a student "Fully Paid" once the account is settled, which
+ * routinely leaves a token shortfall (a waiver, a rounding difference, a
+ * refund adjustment — we measured gaps as small as ₹2). Recomputing demoted
+ * all of those to "Partially Paid" and made the app disagree with the sheet
+ * everyone actually works from: NIAT Chevella read 82 fully paid against the
+ * sheet's 165, NRI 166 against 211.
+ *
+ * The computed rule survives as the fallback for rows where the sheet says
+ * nothing:
  *
  *   payable > 0, paid >= payable  → Fully Paid
  *   payable > 0, paid >  0        → Partially Paid
  *   payable > 0, paid =  0        → Yet To Pay
  *   payable = 0, paid >  0        → Fully Paid (one-off / refund-credit scenarios)
- *   payable = 0, paid =  0        → Yet To Pay (no fee billed, no payment — no obligation met)
+ *   payable = 0, paid =  0        → Yet To Pay (nothing billed, nothing paid)
  */
-function deriveStatus(_typedRaw: string, payable: number, paid: number): string {
+function deriveStatus(typedRaw: string, payable: number, paid: number): string {
+    const typed = normalizeSheetStatus(typedRaw);
+    if (typed) return typed;
     if (payable > 0) {
         if (paid >= payable) return 'Fully Paid';
         if (paid > 0)        return 'Partially Paid';
@@ -109,14 +147,6 @@ function deriveStatus(_typedRaw: string, payable: number, paid: number): string 
     return 'Yet To Pay';
 }
 
-/**
- * Resolve the university-name cell. The exact header drifts between sheets and
- * even carries real typos — the NIAT "2025– Semester 3" tab labels the column
- * "unveristy name", which no exact candidate matches, so the entire batch was
- * silently dropping every row (0 matched → student_count zeroed, stale rows
- * left frozen). After trying the known candidates we fall back to ANY column
- * whose normalized header looks like a university/college/campus label.
- */
 function pickUniversity(row: Record<string, unknown>): string {
     const exact = pickValue(row, [
         'University', 'University Name', 'University name',
@@ -291,7 +321,7 @@ async function syncBatchSubsheet(
         zoho_user_id: string; university_id: string; student_name: string;
         previous_fee_due: number; current_term_discount: number;
         payable: number; paid: number;
-        status_raw: string; registration_status: string | null;
+        status_raw: string; status_sheet: string | null; registration_status: string | null;
         registration_date: string | null; tag_case: string | null;
         success_coach_name: string | null;
     };
@@ -336,12 +366,13 @@ async function syncBatchSubsheet(
         buffer.push({
             zoho_user_id, university_id, student_name,
             previous_fee_due, current_term_discount, payable, paid,
-            status_raw, registration_status, registration_date, tag_case, success_coach_name,
+            status_raw, status_sheet: typed_status || null,
+            registration_status, registration_date, tag_case, success_coach_name,
         });
         seenZoho.add(zoho_user_id);
     }
 
-    // Chunked bulk upsert. 500 rows × 13 params/row = 6500 params per call,
+    // Chunked bulk upsert. 500 rows × 14 params/row = 7000 params per call,
     // well under Postgres' 65535 parameter limit.
     const CHUNK = 500;
     let studentCount = 0;
@@ -350,20 +381,20 @@ async function syncBatchSubsheet(
         const values: unknown[] = [];
         const placeholders: string[] = [];
         slice.forEach((s, i) => {
-            const o = i * 13;
-            placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},$${o+9},$${o+10},$${o+11},$${o+12},$${o+13},now(),now())`);
+            const o = i * 14;
+            placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},$${o+9},$${o+10},$${o+11},$${o+12},$${o+13},$${o+14},now(),now())`);
             values.push(
                 bp.id, s.university_id, s.zoho_user_id, s.student_name,
                 s.payable, s.paid, s.previous_fee_due, s.current_term_discount,
-                s.status_raw, s.registration_status, s.registration_date, s.tag_case,
-                s.success_coach_name,
+                s.status_raw, s.status_sheet, s.registration_status, s.registration_date,
+                s.tag_case, s.success_coach_name,
             );
         });
         await db.query(
             `INSERT INTO fee_student_payments
                 (batch_period_id, university_id, zoho_user_id, student_name,
                  payable, paid, previous_fee_due, current_term_discount,
-                 status, registration_status, registration_date, tag_case,
+                 status, status_sheet, registration_status, registration_date, tag_case,
                  success_coach_name, imported_at, updated_at)
              VALUES ${placeholders.join(',')}
              ON CONFLICT (batch_period_id, zoho_user_id) WHERE batch_period_id IS NOT NULL
@@ -375,6 +406,7 @@ async function syncBatchSubsheet(
                 previous_fee_due     = EXCLUDED.previous_fee_due,
                 current_term_discount = EXCLUDED.current_term_discount,
                 status               = EXCLUDED.status,
+                status_sheet         = EXCLUDED.status_sheet,
                 registration_status  = EXCLUDED.registration_status,
                 registration_date    = EXCLUDED.registration_date,
                 tag_case             = EXCLUDED.tag_case,
@@ -528,6 +560,164 @@ async function syncDatesSubsheet(
     }
 }
 
+/**
+ * Ingest the sheet's per-university roll-up tab (the "dashboard").
+ *
+ * Why this exists: of the 20 university rows on that tab, only three still
+ * have a per-student sub-sheet behind them (ADYPU, KKH Batch-1, KKH Batch-2).
+ * The other seventeen are maintained as dashboard rows only — their student
+ * detail lives in per-university working tabs with no common schema, or off
+ * the sheet entirely. No amount of per-student aggregation can reproduce
+ * those rows, so the roll-up itself is the source of truth and we store it
+ * verbatim.
+ *
+ * The tab's `batch` column ("batch-1", "batch-2", "batch-3") is positional:
+ * batch-1 is the oldest cohort in the window. We map it onto the window's
+ * batch_periods ordered by start year so the Overview's batch multi-select
+ * keeps working.
+ */
+async function syncDashboardSubsheet(
+    window_id: string,
+    sheet_id: string,
+    subsheet_name: string,
+    uniIdx: Map<string, string>,
+    summary: SyncSummary,
+): Promise<void> {
+    if (!subsheet_name) return;
+    let rows: Record<string, unknown>[];
+    try {
+        rows = await fetchSheetTab(sheet_id, subsheet_name);
+    } catch (e) {
+        summary.errors.push({ sub_sheet: subsheet_name, message: (e as Error).message });
+        return;
+    }
+
+    // batch-N → batch_period, N ordered oldest-first.
+    const bpRes = await db.query(
+        `SELECT id, batch_start_year FROM fee_batch_period
+          WHERE window_id = $1 ORDER BY batch_start_year ASC`,
+        [window_id],
+    );
+    const byPosition = (bpRes.rows as Array<{ id: string }>).map(r => r.id);
+
+    type SumRow = {
+        batch_period_id: string | null; university_id: string;
+        sheet_label: string; batch_label: string | null;
+        strength: number; fully: number; partial: number; yet: number;
+        dropouts: number; payable: number; paid: number;
+        pct_x100: number | null; reg_date: string | null;
+        reg_status: string | null; remarks: string | null;
+    };
+    const buffer: SumRow[] = [];
+    const seen = new Set<string>();
+
+    for (const r of rows) {
+        const label = pickUniversity(r) || String(pickValue(r, ['University']) ?? '').trim();
+        if (!label) continue;
+        // The tab ends with a grand-total row — it isn't a university.
+        if (/^(total|grand total|sum)$/i.test(label)) continue;
+
+        const university_id = findUniversityIdInIndex(uniIdx, label);
+        if (!university_id) {
+            if (!summary.universities_unmatched.includes(label)) summary.universities_unmatched.push(label);
+            continue;
+        }
+
+        const batch_label = String(pickValue(r, ['batch', 'Batch']) ?? '').trim() || null;
+        const bn = batch_label?.match(/(\d+)/);
+        const batch_period_id = bn ? (byPosition[Number(bn[1]) - 1] ?? null) : null;
+
+        // A window can legitimately list one university under two batches
+        // (KKH Batch-1 and Batch-2 both resolve to KKH Hyderabad), so the key
+        // is the PAIR, not the university.
+        const key = `${batch_period_id ?? 'none'}|${university_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // Deliberately NOT read from the sheet's own "Fully Paid %" cell:
+        // gviz hands back the underlying value (0.9884), not the displayed
+        // "98.84%", and there's no reliable way to tell a fraction from a
+        // small percentage. The column is defined as fully-paid students over
+        // strength, so we recompute it — same number, no ambiguity.
+        const strengthN = toNum(pickValue(r, ['Total Strength', 'Strength']));
+        const fullyN    = toNum(pickValue(r, ['Count of Students Paid Fully', 'Fully Paid']));
+
+        buffer.push({
+            batch_period_id, university_id, sheet_label: label, batch_label,
+            strength: strengthN,
+            fully:    fullyN,
+            partial:  toNum(pickValue(r, ['Count of Students Paid Partially', 'Partially Paid'])),
+            yet:      toNum(pickValue(r, ['Count of Students Paid Null', 'Yet To Pay'])),
+            dropouts: toNum(pickValue(r, ['Dropout count', 'Dropout Count'])),
+            payable:  toNum(pickValue(r, ['Payable', 'Total Payable'])),
+            paid:     toNum(pickValue(r, ['Paid', 'Total Paid'])),
+            pct_x100: strengthN > 0 ? Math.round((fullyN / strengthN) * 10000) : null,
+            reg_date:   String(pickValue(r, ['Registration Date']) ?? '').trim() || null,
+            reg_status: String(pickValue(r, ['Registration Status']) ?? '').trim() || null,
+            remarks:    String(pickValue(r, ['Remarks', 'remarks']) ?? '').trim() || null,
+        });
+    }
+
+    if (buffer.length === 0) {
+        summary.errors.push({
+            sub_sheet: subsheet_name,
+            message: `Fetched ${rows.length} rows but matched 0 universities. Left the previous roll-up in place. Check the tab's University column header.`,
+        });
+        return;
+    }
+
+    const values: unknown[] = [];
+    const placeholders: string[] = [];
+    buffer.forEach((b, i) => {
+        const o = i * 16;
+        placeholders.push(
+            `($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},$${o+9},$${o+10},$${o+11},$${o+12},$${o+13},$${o+14},$${o+15},$${o+16},now(),now())`,
+        );
+        values.push(
+            window_id, b.batch_period_id, b.university_id, b.sheet_label, b.batch_label,
+            b.strength, b.fully, b.partial, b.yet, b.dropouts,
+            b.payable, b.paid, b.pct_x100, b.reg_date, b.reg_status, b.remarks,
+        );
+    });
+    await db.query(
+        `INSERT INTO fee_university_summary
+            (window_id, batch_period_id, university_id, sheet_label, batch_label,
+             strength, fully_paid, partially_paid, yet_to_pay, dropout_count,
+             total_payable, total_paid, fully_paid_pct_x100,
+             registration_date, registration_status, remarks, synced_at, updated_at)
+         VALUES ${placeholders.join(',')}
+         ON CONFLICT (window_id, batch_period_id, university_id) DO UPDATE SET
+            sheet_label         = EXCLUDED.sheet_label,
+            batch_label         = EXCLUDED.batch_label,
+            strength            = EXCLUDED.strength,
+            fully_paid          = EXCLUDED.fully_paid,
+            partially_paid      = EXCLUDED.partially_paid,
+            yet_to_pay          = EXCLUDED.yet_to_pay,
+            dropout_count       = EXCLUDED.dropout_count,
+            total_payable       = EXCLUDED.total_payable,
+            total_paid          = EXCLUDED.total_paid,
+            fully_paid_pct_x100 = EXCLUDED.fully_paid_pct_x100,
+            registration_date   = EXCLUDED.registration_date,
+            registration_status = EXCLUDED.registration_status,
+            remarks             = EXCLUDED.remarks,
+            synced_at           = now(),
+            updated_at          = now()`,
+        values,
+    );
+
+    // Drop roll-up rows for universities the sheet no longer lists, so a
+    // removed campus doesn't linger in the Overview the way the per-student
+    // ghosts did.
+    await db.query(
+        `DELETE FROM fee_university_summary
+          WHERE window_id = $1
+            AND (COALESCE(batch_period_id::text, 'none') || '|' || university_id::text) <> ALL($2::text[])`,
+        [window_id, Array.from(seen)],
+    );
+
+    summary.summary_rows_upserted += buffer.length;
+}
+
 async function syncDropoutSubsheet(
     window_id: string,
     sheet_id: string,
@@ -644,8 +834,9 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
     const winRes = await db.query<{
         id: string; sheet_id: string;
         batch_subsheets: string; dates_subsheet: string | null; dropout_subsheet: string | null;
+        dashboard_subsheet: string | null;
     }>(
-        `SELECT id, sheet_id, batch_subsheets, dates_subsheet, dropout_subsheet
+        `SELECT id, sheet_id, batch_subsheets, dates_subsheet, dropout_subsheet, dashboard_subsheet
            FROM fee_semester_window WHERE id = $1`,
         [window_id],
     );
@@ -658,6 +849,7 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
         batch_periods_synced: 0, students_upserted: 0,
         students_purged: 0, purge_skipped: [],
         universities_unmatched: [], dates_rows_upserted: 0, dropouts_upserted: 0,
+        summary_rows_upserted: 0,
         errors: [], elapsed_ms: 0,
     };
 
@@ -683,6 +875,11 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
     }
     if (win.dropout_subsheet) {
         await syncDropoutSubsheet(window_id, win.sheet_id, win.dropout_subsheet, uniIdx, summary);
+    }
+    // Last, because it maps batch-N onto batch_periods that the batch pass
+    // above may have only just created.
+    if (win.dashboard_subsheet) {
+        await syncDashboardSubsheet(window_id, win.sheet_id, win.dashboard_subsheet, uniIdx, summary);
     }
 
     const finishedMs = Date.now();
