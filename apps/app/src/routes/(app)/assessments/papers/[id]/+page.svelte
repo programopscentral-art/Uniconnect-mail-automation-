@@ -578,7 +578,14 @@
       const el = document.getElementById(id);
       if (el) return el;
     }
-    return document.getElementById("paper-content");
+    // Every template marks its A4 sheet `<name>-paper-actual`. The list above
+    // was never extended past eight of them, so GMRIT, Subharti, Standard,
+    // Takshashila, NRI, Malla Reddy, Crescent MID and ADYPU MID all fell through
+    // to #paper-content — capturing the grey surround and padding, not the sheet.
+    return (
+      document.querySelector<HTMLElement>('[id$="-paper-actual"]') ||
+      document.getElementById("paper-content")
+    );
   }
   const settle = () =>
     new Promise((r) => requestAnimationFrame(() => setTimeout(() => r(null), 350)));
@@ -789,7 +796,8 @@
       document.getElementById("amet-paper-actual") ||
       document.getElementById("annamacharya-paper-actual") ||
       document.getElementById("cdu-paper-actual") ||
-      document.getElementById("adypu-sem-paper-actual");
+      document.getElementById("adypu-sem-paper-actual") ||
+      document.querySelector<HTMLElement>('[id$="-paper-actual"]');
 
     if (!el) {
       const content = document.getElementById("paper-content")?.innerHTML;
@@ -844,7 +852,7 @@
                                 justify-content: center !important;
                                 align-items: flex-start !important;
                             }
-                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, .paper-container {
+                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, [id$="-paper-actual"], .paper-container {
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -866,7 +874,7 @@
                             justify-content: center;
                             padding: 20px;
                         }
-                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, .paper-container {
+                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, [id$="-paper-actual"], .paper-container {
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;

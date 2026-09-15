@@ -6,8 +6,8 @@
  * change here plus the component itself.
  */
 
+import ADYPUMidTemplate from "./ADYPUMidTemplate.svelte";
 import ADYPUSemTemplate from "./ADYPUSemTemplate.svelte";
-import ADYPUTemplate from "./ADYPUTemplate.svelte";
 import AMETTemplate from "./AMETTemplate.svelte";
 import AnnamacharyaTemplate from "./AnnamacharyaTemplate.svelte";
 import CDUTemplate from "./CDUTemplate.svelte";
@@ -42,7 +42,7 @@ export const TEMPLATE_REGISTRY: Record<string, any> = {
 	cdumid: CDUTemplate,
 	crescentmid: CrescentMidTemplate,
 	crescentsem: CrescentTemplate,
-	adypumid: ADYPUTemplate,
+	adypumid: ADYPUMidTemplate,
 	adypusem: ADYPUSemTemplate,
 	vgumid: VGUMidTemplate,
 	vgusem: VGUSemTemplate,

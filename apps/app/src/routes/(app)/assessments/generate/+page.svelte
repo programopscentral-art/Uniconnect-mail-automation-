@@ -94,6 +94,14 @@
       } else if (selectedExamType === "SEM") {
         examTitleHeader = "SEMESTER END EXAMINATION";
       }
+    } else if (isADYPUMid) {
+      // ADYPU prints "UNIT TEST – FEB-2026", taken from the exam date.
+      const d = new Date(examDate || Date.now());
+      const valid = !Number.isNaN(d.getTime());
+      const mon = (valid ? d : new Date())
+        .toLocaleString("en-US", { month: "short" })
+        .toUpperCase();
+      examTitleHeader = `UNIT TEST – ${mon}-${(valid ? d : new Date()).getFullYear()}`;
     } else {
       // For other universities, use detailed headers
       if (selectedExamType === "MID1") {
@@ -189,6 +197,70 @@
 
     const is100 = Number(maxMarks) === 100;
     const structure = [];
+
+    if (isADYPUMid) {
+      /* ADYPU Unit Test (MID) sheet — Max 20, 1 hour:
+           Attempt any two   5 x 2 = 10
+             1. Multiple Choice Questions: a)–e), 1 mark each   (= 5)
+             2. long answer, 5 marks
+             3. long answer, 5 marks
+           Attempt any two   5 x 2 = 10
+             4. / 5. / 6. long answer, 5 marks each
+         Q1 is one slot carrying five MCQ sub-parts, so the printed paper shows
+         a) … e) beneath "Multiple Choice Questions:". Numbering runs 1–6
+         straight through both bands. */
+      const longQ = (part: string, n: number) => ({
+        id: `${part}-${n}-${Math.random()}`,
+        label: `${n}`,
+        part,
+        type: "SINGLE",
+        marks: 5,
+        unit: "Auto",
+        qType: "LONG",
+        bloom: "ANY",
+      });
+
+      structure.push({
+        title: "Attempt any two",
+        part: "A",
+        answered_count: 2,
+        marks_per_q: 5,
+        slots: [
+          {
+            id: `A-1-${Math.random()}`,
+            label: "1",
+            part: "A",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "MCQ",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 5,
+            // explicit per-part marks so the generator picks 1-mark MCQs
+            // rather than inferring an even split
+            sub_marks: [1, 1, 1, 1, 1],
+            marks_a: 1,
+            marks_b: 1,
+            marks_c: 1,
+          },
+          longQ("A", 2),
+          longQ("A", 3),
+        ],
+      });
+
+      structure.push({
+        title: "Attempt any two",
+        part: "B",
+        answered_count: 2,
+        marks_per_q: 5,
+        slots: [longQ("B", 4), longQ("B", 5), longQ("B", 6)],
+      });
+
+      paperStructure = structure;
+      refreshLabels();
+      return;
+    }
 
     if (isADYPU) {
       // Matches the original ADYPU Sem template format exactly:
@@ -1566,7 +1638,7 @@
   }
 
   function addSingleSlot(section: any) {
-    const numSub = section.numSubQuestions || (isADYPU ? 2 : 0);
+    const numSub = section.numSubQuestions || (isADYPUSem ? 2 : 0);
     const m = section.marks_per_q;
     section.slots.push({
       id: Math.random().toString(36).substr(2, 9),
@@ -1574,12 +1646,12 @@
       type: "SINGLE",
       marks: m,
       unit: "Auto",
-      qType: "NORMAL",
+      qType: isADYPUMid ? "LONG" : "NORMAL",
       bloom: "ANY",
-      hasSubQuestions: isADYPU ? true : false,
+      hasSubQuestions: isADYPUSem ? true : false,
       numSubQuestions: numSub || 2,
-      marks_a: isADYPU ? m : Number((m / 2).toFixed(1)),
-      marks_b: isADYPU ? m : Number((m / 2).toFixed(1)),
+      marks_a: isADYPUSem ? m : Number((m / 2).toFixed(1)),
+      marks_b: isADYPUSem ? m : Number((m / 2).toFixed(1)),
       marks_c: numSub >= 3 ? m : undefined,
     });
     refreshLabels();
@@ -1626,7 +1698,25 @@
   function addSection() {
     const char = String.fromCharCode(65 + paperStructure.length); // Next char
     const nextQNum = paperStructure.length + 1;
-    if (isADYPU) {
+    if (isADYPUMid) {
+      // ADYPU MID: another "Attempt any two" band of three 5-mark questions
+      paperStructure.push({
+        title: "Attempt any two",
+        part: char,
+        answered_count: 2,
+        marks_per_q: 5,
+        slots: Array.from({ length: 3 }, (_, i) => ({
+          id: `${char}-${nextQNum + i}-${Math.random()}`,
+          label: ``,
+          part: char,
+          type: "SINGLE",
+          marks: 5,
+          unit: "Auto",
+          qType: "LONG",
+          bloom: "ANY",
+        })),
+      });
+    } else if (isADYPUSem) {
       // ADYPU: default to "Attempt any one" with 2 sub-questions
       paperStructure.push({
         title: "Attempt any one",
@@ -1801,6 +1891,14 @@
       activeUniversity?.name?.toLowerCase()?.includes("adypu") ||
       activeUniversity?.name?.toLowerCase()?.includes("patil"),
   );
+  // ADYPU prints two different papers. The Unit Test (MID) is a single ruled
+  // sheet — 20 marks, two "Attempt any two" bands — while the Sem paper is six
+  // sub-questioned blocks. Before this split every ADYPU paper, MID included,
+  // was built with the Sem structure.
+  const isADYPUMid = $derived(
+    isADYPU && (selectedExamType === "MID1" || selectedExamType === "MID2"),
+  );
+  const isADYPUSem = $derived(isADYPU && !isADYPUMid);
   const isNRI = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("nri") ||
       activeUniversity?.slug?.includes("nri"),
@@ -1845,9 +1943,17 @@
       }
     } else if (isADYPU) {
       selectedTemplate = "adypu";
-      maxMarks = 50;
-      examDuration = 120;
-      paperInstructions = "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated.";
+      // Reading isADYPUMid makes this re-run when the exam type flips, so a
+      // MID <-> SEM change rebuilds with the right marks and structure.
+      if (isADYPUMid) {
+        maxMarks = 20;
+        examDuration = 60;
+        paperInstructions = "";
+      } else {
+        maxMarks = 50;
+        examDuration = 120;
+        paperInstructions = "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated.";
+      }
       paperStructure = []; // Clear to force re-init
     } else if (isNRI) {
       selectedTemplate = "nri";
@@ -1875,7 +1981,9 @@
         : isVGU
           ? "VGU University"
           : isADYPU
-            ? "ADYPU Sem Template"
+            ? isADYPUMid
+              ? "ADYPU Mid Template"
+              : "ADYPU Sem Template"
             : isNRI
               ? "NRI Institute of Technology"
               : isSGU
@@ -2751,7 +2859,7 @@
               <div class="space-y-4">
                 <div class="flex flex-col gap-3 px-2">
                   <div class="flex items-center justify-between gap-4">
-                    {#if isADYPU}
+                    {#if isADYPUSem}
                       <div class="flex items-center gap-3 flex-1">
                         <select
                           value={section.answered_count === 1 ? "one" : section.answered_count === 2 ? "two" : section.answered_count === 3 ? "three" : "custom"}
